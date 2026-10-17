@@ -1,0 +1,16 @@
+{
+  "values": {
+    "battery.central.percent": 87,
+    "battery.central.charge": "charging",
+    "battery.peripheral.percent": 64,
+    "battery.left.percent": 87,
+    "battery.left.charge": "charging",
+    "battery.right.percent": 64,
+    "battery.right.charge": "discharging",
+    "ble.active_profile": 3,
+    "ble.connected_profiles": 10,
+    "output.selected": "ble",
+    "layer.index": 2,
+    "display.half": "right"
+  }
+}

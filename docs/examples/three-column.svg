@@ -1,0 +1,473 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="800" height="340"
+     viewBox="0 0 160 68"
+     shape-rendering="crispEdges">
+
+  <title>Nice!view Plus — Three-Column Status</title>
+
+  <!-- ================= BACKGROUND ================= -->
+
+  <rect width="160" height="68" fill="#fff"/>
+
+  <!-- ================= DIVIDERS ================= -->
+
+  <g fill="none" stroke="#000" stroke-width="1">
+    <path d="M53.5 4V49"/>
+    <path d="M106.5 4V49"/>
+    <path d="M3 51.5H157"/>
+  </g>
+
+  <!-- ================= LEFT BATTERY ================= -->
+
+  <g id="battery-left" data-nvp-widget="battery">
+
+    <text x="26" y="11"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7"
+          font-weight="bold">BATTERY</text>
+
+    <!-- Battery outline -->
+    <rect x="6.5" y="17.5"
+          width="34" height="12"
+          rx="1"
+          fill="none"
+          stroke="#000"/>
+
+    <!-- Battery terminal -->
+    <rect x="41" y="21"
+          width="2" height="5"
+          fill="#000"/>
+
+    <!-- Battery level -->
+    <rect x="9" y="21"
+          width="27" height="5"
+          fill="#000"
+          data-nvp-slot="level"
+          data-nvp-bind="battery.left.percent"
+          data-nvp-render="bar"/>
+
+    <!-- Battery percentage -->
+    <text x="26" y="45"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="13"
+          font-weight="bold"
+          data-nvp-slot="level"
+          data-nvp-bind="battery.left.percent"
+          data-nvp-render="percent">87%</text>
+
+    <!-- Charging indicator -->
+<!-- Charging indicator — centered inside battery -->
+
+<path d="M25 18
+
+         L19 24
+
+         H24
+
+         L22 29
+
+         L30 22
+
+         H25
+
+         L27 18Z"
+
+      fill="#fff"
+
+      stroke="#000"
+
+      stroke-width="0.8"
+
+      stroke-linejoin="round"
+
+      data-nvp-slot="charge"
+
+      data-nvp-bind="battery.left.charge"
+
+      data-nvp-render="visible"
+
+      data-nvp-when="charging"
+
+      data-nvp-bounds="19,18,11,11"/>
+
+  </g>
+
+  <!-- ================= LAYER ================= -->
+
+  <g id="layer-display" data-nvp-widget="layer">
+
+    <text x="80" y="11"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7"
+          font-weight="bold">LAYER</text>
+
+    <text x="80" y="39"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="25"
+          font-weight="bold"
+          data-nvp-slot="value"
+          data-nvp-bind="layer.index"
+          data-nvp-render="text">0</text>
+
+    <path d="M65 43.5H95"
+          stroke="#000"
+          stroke-width="1"/>
+
+    <text x="80" y="49"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="5">ACTIVE</text>
+
+  </g>
+
+  <!-- ================= HOST ================= -->
+
+  <g id="connection-status" data-nvp-widget="connection">
+
+    <text x="133" y="11"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7"
+          font-weight="bold">HOST</text>
+
+    <!-- USB selected -->
+    <g data-nvp-slot="selected"
+       data-nvp-bind="output.selected"
+       data-nvp-render="visible"
+       data-nvp-when="usb"
+       data-nvp-bounds="115,17,36,19">
+
+      <rect x="115" y="17"
+            width="36" height="19"
+            rx="1"
+            fill="#000"/>
+
+      <text x="133" y="30"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="9"
+            font-weight="bold">USB</text>
+
+    </g>
+
+    <!-- BLE selected -->
+    <g data-nvp-slot="selected"
+       data-nvp-bind="output.selected"
+       data-nvp-render="visible"
+       data-nvp-when="ble"
+       data-nvp-bounds="115,17,36,19">
+
+      <rect x="115" y="17"
+            width="36" height="19"
+            rx="1"
+            fill="#000"/>
+
+      <text x="133" y="30"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="9"
+            font-weight="bold">BLE</text>
+
+    </g>
+
+    <!-- No output -->
+    <g data-nvp-slot="selected"
+       data-nvp-bind="output.selected"
+       data-nvp-render="visible"
+       data-nvp-when="none"
+       data-nvp-bounds="115,17,36,19">
+
+      <rect x="115" y="17"
+            width="36" height="19"
+            rx="1"
+            fill="#fff"
+            stroke="#000"/>
+
+      <text x="133" y="30"
+            text-anchor="middle"
+            font-family="monospace"
+            font-size="9"
+            font-weight="bold">--</text>
+
+    </g>
+
+    <text x="133" y="46"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">SOFLE</text>
+
+  </g>
+
+  <!-- ================= BLE LABEL ================= -->
+
+  <text x="5" y="63"
+        font-family="monospace"
+        font-size="7"
+        font-weight="bold">BLE</text>
+
+  <!-- ================= PROFILE 1 ================= -->
+
+  <g id="profile-1" data-nvp-widget="profile_tile">
+
+    <!-- Default inactive state -->
+    <rect x="30" y="55"
+          width="16" height="11"
+          rx="1"
+          fill="#fff"
+          stroke="#000"/>
+
+    <text x="38" y="63"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">1</text>
+
+    <!-- Active state -->
+    <g data-nvp-slot="active"
+       data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible"
+       data-nvp-when="0"
+       data-nvp-bounds="30,55,16,11">
+
+      <rect x="30" y="55"
+            width="16" height="11"
+            rx="1"
+            fill="#000"/>
+
+      <text x="38" y="63"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="7">1</text>
+
+    </g>
+
+    <!-- Connected indicator -->
+    <circle cx="44" cy="57"
+            r="1.5"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible"
+            data-nvp-when="set"
+            data-nvp-bit="0"
+            data-nvp-bounds="42,55,4,4"/>
+
+  </g>
+
+  <!-- ================= PROFILE 2 ================= -->
+
+  <g id="profile-2" data-nvp-widget="profile_tile">
+
+    <rect x="49" y="55"
+          width="16" height="11"
+          rx="1"
+          fill="#fff"
+          stroke="#000"/>
+
+    <text x="57" y="63"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">2</text>
+
+    <g data-nvp-slot="active"
+       data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible"
+       data-nvp-when="1"
+       data-nvp-bounds="49,55,16,11">
+
+      <rect x="49" y="55"
+            width="16" height="11"
+            rx="1"
+            fill="#000"/>
+
+      <text x="57" y="63"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="7">2</text>
+
+    </g>
+
+    <circle cx="63" cy="57"
+            r="1.5"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible"
+            data-nvp-when="set"
+            data-nvp-bit="1"
+            data-nvp-bounds="61,55,4,4"/>
+
+  </g>
+
+  <!-- ================= PROFILE 3 ================= -->
+
+  <g id="profile-3" data-nvp-widget="profile_tile">
+
+    <rect x="68" y="55"
+          width="16" height="11"
+          rx="1"
+          fill="#fff"
+          stroke="#000"/>
+
+    <text x="76" y="63"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">3</text>
+
+    <g data-nvp-slot="active"
+       data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible"
+       data-nvp-when="2"
+       data-nvp-bounds="68,55,16,11">
+
+      <rect x="68" y="55"
+            width="16" height="11"
+            rx="1"
+            fill="#000"/>
+
+      <text x="76" y="63"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="7">3</text>
+
+    </g>
+
+    <circle cx="82" cy="57"
+            r="1.5"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible"
+            data-nvp-when="set"
+            data-nvp-bit="2"
+            data-nvp-bounds="80,55,4,4"/>
+
+  </g>
+
+  <!-- ================= PROFILE 4 ================= -->
+
+  <g id="profile-4" data-nvp-widget="profile_tile">
+
+    <rect x="87" y="55"
+          width="16" height="11"
+          rx="1"
+          fill="#fff"
+          stroke="#000"/>
+
+    <text x="95" y="63"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">4</text>
+
+    <g data-nvp-slot="active"
+       data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible"
+       data-nvp-when="3"
+       data-nvp-bounds="87,55,16,11">
+
+      <rect x="87" y="55"
+            width="16" height="11"
+            rx="1"
+            fill="#000"/>
+
+      <text x="95" y="63"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="7">4</text>
+
+    </g>
+
+    <circle cx="101" cy="57"
+            r="1.5"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible"
+            data-nvp-when="set"
+            data-nvp-bit="3"
+            data-nvp-bounds="99,55,4,4"/>
+
+  </g>
+
+  <!-- ================= PROFILE 5 ================= -->
+
+  <g id="profile-5" data-nvp-widget="profile_tile">
+
+    <rect x="106" y="55"
+          width="16" height="11"
+          rx="1"
+          fill="#fff"
+          stroke="#000"/>
+
+    <text x="114" y="63"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="7">5</text>
+
+    <g data-nvp-slot="active"
+       data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible"
+       data-nvp-when="4"
+       data-nvp-bounds="106,55,16,11">
+
+      <rect x="106" y="55"
+            width="16" height="11"
+            rx="1"
+            fill="#000"/>
+
+      <text x="114" y="63"
+            text-anchor="middle"
+            fill="#fff"
+            font-family="monospace"
+            font-size="7">5</text>
+
+    </g>
+
+    <circle cx="120" cy="57"
+            r="1.5"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible"
+            data-nvp-when="set"
+            data-nvp-bit="4"
+            data-nvp-bounds="118,55,4,4"/>
+
+  </g>
+
+  <!-- ================= SPLIT CONNECTION ================= -->
+
+  <g id="split-link" data-nvp-widget="split_link">
+
+    <text x="132" y="63"
+          font-family="monospace"
+          font-size="6">S</text>
+
+    <circle cx="150" cy="60.5"
+            r="3"
+            fill="#fff"
+            stroke="#000"
+            data-nvp-slot="connected"
+            data-nvp-bind="split.connected"
+            data-nvp-render="visible"
+            data-nvp-when="true"
+            data-nvp-role="peripheral"
+            data-nvp-bounds="147,57,6,7"/>
+
+  </g>
+
+</svg>

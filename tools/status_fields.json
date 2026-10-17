@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "roles": ["central", "peripheral"],
+  "fields": [
+    {
+      "id": "battery.central.percent",
+      "type": "percent",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "sources": {
+        "central": "zmk_battery_state_changed",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "battery.central.charge",
+      "type": "enum",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "values": ["charging", "discharging", "full", "unknown"],
+      "sources": {
+        "central": "zmk_battery_state_changed",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "battery.peripheral.percent",
+      "type": "percent",
+      "owner": "peripheral",
+      "available_on": ["central", "peripheral"],
+      "sources": {
+        "central": "split_battery_fetch",
+        "peripheral": "zmk_battery_state_changed"
+      }
+    },
+    {
+      "id": "battery.peripheral.charge",
+      "type": "enum",
+      "owner": "peripheral",
+      "available_on": ["central", "peripheral"],
+      "values": ["charging", "discharging", "full", "unknown"],
+      "sources": {
+        "central": "split_battery_fetch",
+        "peripheral": "zmk_battery_state_changed"
+      }
+    },
+    {
+      "id": "battery.left.percent",
+      "type": "percent",
+      "owner": "physical-left-half",
+      "available_on": ["central", "peripheral"],
+      "sources": {
+        "central": "central-or-peripheral-battery-by-central-half-config",
+        "peripheral": "central-or-peripheral-battery-by-central-half-config"
+      }
+    },
+    {
+      "id": "battery.left.charge",
+      "type": "enum",
+      "owner": "physical-left-half",
+      "available_on": ["central", "peripheral"],
+      "values": ["charging", "discharging", "full", "unknown"],
+      "sources": {
+        "central": "central-or-peripheral-battery-by-central-half-config",
+        "peripheral": "central-or-peripheral-battery-by-central-half-config"
+      }
+    },
+    {
+      "id": "battery.right.percent",
+      "type": "percent",
+      "owner": "physical-right-half",
+      "available_on": ["central", "peripheral"],
+      "sources": {
+        "central": "central-or-peripheral-battery-by-central-half-config",
+        "peripheral": "central-or-peripheral-battery-by-central-half-config"
+      }
+    },
+    {
+      "id": "battery.right.charge",
+      "type": "enum",
+      "owner": "physical-right-half",
+      "available_on": ["central", "peripheral"],
+      "values": ["charging", "discharging", "full", "unknown"],
+      "sources": {
+        "central": "central-or-peripheral-battery-by-central-half-config",
+        "peripheral": "central-or-peripheral-battery-by-central-half-config"
+      }
+    },
+    {
+      "id": "output.selected",
+      "type": "enum",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "values": ["usb", "ble", "none"],
+      "sources": {
+        "central": "zmk_endpoint_get_selected",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "usb.powered",
+      "type": "boolean",
+      "owner": "central",
+      "available_on": ["central"],
+      "sources": {"central": "zmk_usb_is_powered"}
+    },
+    {
+      "id": "usb.hid_ready",
+      "type": "boolean",
+      "owner": "central",
+      "available_on": ["central"],
+      "sources": {"central": "zmk_usb_is_hid_ready"}
+    },
+    {
+      "id": "ble.profile_count",
+      "type": "integer",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "minimum": 0,
+      "maximum": 8,
+      "sources": {
+        "central": "ZMK_BLE_PROFILE_COUNT",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "ble.active_profile",
+      "type": "integer",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "minimum": -1,
+      "maximum": 7,
+      "sources": {
+        "central": "zmk_ble_active_profile_index",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "ble.connected_profiles",
+      "type": "bitmask",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "maximum": 255,
+      "sources": {
+        "central": "zmk_ble_profile_is_connected",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "ble.bonded_profiles",
+      "type": "bitmask",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "sources": {
+        "central": "zmk_ble_profile_is_open",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "layer.index",
+      "type": "integer",
+      "owner": "central",
+      "available_on": ["central", "peripheral"],
+      "minimum": 0,
+      "maximum": 255,
+      "sources": {
+        "central": "zmk_keymap_highest_layer_active",
+        "peripheral": "split_status_v3"
+      }
+    },
+    {
+      "id": "layer.name",
+      "type": "string",
+      "owner": "local-keymap",
+      "available_on": ["central"],
+      "sources": {
+        "central": "zmk_keymap_layer_name"
+      }
+    },
+    {
+      "id": "split.role",
+      "type": "enum",
+      "owner": "firmware",
+      "available_on": ["central", "peripheral"],
+      "values": ["central", "peripheral"],
+      "sources": {
+        "central": "CONFIG_ZMK_SPLIT_ROLE_CENTRAL",
+        "peripheral": "split_role"
+      }
+    },
+    {
+      "id": "display.half",
+      "type": "enum",
+      "owner": "firmware",
+      "available_on": ["central", "peripheral"],
+      "values": ["left", "right"],
+      "sources": {
+        "central": "CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF",
+        "peripheral": "CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF"
+      }
+    },
+    {
+      "id": "split.connected",
+      "type": "boolean",
+      "owner": "split-link",
+      "available_on": ["peripheral"],
+      "sources": {"peripheral": "split_ble_connection_state"}
+    },
+    {
+      "id": "wpm.current",
+      "type": "integer",
+      "owner": "local-wpm",
+      "available_on": ["central", "peripheral"],
+      "minimum": 0,
+      "maximum": 255,
+      "optional": true,
+      "sources": {
+        "central": "ZMK_WPM",
+        "peripheral": "split_status_v3"
+      }
+    }
+  ]
+}

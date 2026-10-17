@@ -1,121 +1,75 @@
-# cormoran's ZMK Module Template for ZMK
+# ZMK Nice!view Plus
 
-![ZMK Version](https://img.shields.io/badge/ZMK-master-blue)
-[![Test](https://github.com/cormoran/zmk-module-template/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-module-template/actions/workflows/zmk-module.yml) [![Devcontainer](https://github.com/cormoran/zmk-module-template/actions/workflows/devcontainer.yml/badge.svg?branch=main)](https://github.com/cormoran/zmk-module-template/actions/workflows/devcontainer.yml)
+[![Build](https://github.com/MicheleYin/zmk-module-nice-view-svg/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/MicheleYin/zmk-module-nice-view-svg/actions/workflows/zmk-module.yml)
 
-This repository contains a template for a ZMK module, as it would most frequently be used.
+Nice!view Plus is a ZMK module for a configurable status screen on Nice!view displays. Both halves show central and peripheral battery levels, the active layer, BLE profiles, host output, and split status in the same landscape layout. WPM is not enabled by this module, but remains in the optional status packet if another configuration enables it.
 
-It's extended from ZMK official template with applying [zmk-west-commands](https://github.com/cormoran/zmk-west-commands), adding test code template and coding agent supports.
+## Screen preview
 
-## Usage
+The five widget groups follow the SVG on the 160 x 68 pixel display: paired battery meters and a large layer tile at the top, profile buttons across the middle, then host and split status along the bottom. A lightning bolt inside a filled battery marks charging.
 
-Read through the [ZMK Module Creation](https://zmk.dev/docs/development/module-creation) page for details on how to configure this template.
+Both halves show this same screen and the same central/peripheral values. The preview uses the native 160 x 68 landscape proportions and current widget coordinates; glyph shapes and font rendering are approximations.
 
-## More Info
+![Approximate Nice!view Plus screen preview at 160 x 68](docs/nice-view-plus-preview.svg)
 
-For more info on modules, you can read through through the [Zephyr modules page](https://docs.zephyrproject.org/3.5.0/develop/modules.html) and [ZMK's page on using modules](https://zmk.dev/docs/features/modules). [Zephyr's west manifest page](https://docs.zephyrproject.org/3.5.0/develop/west/manifest.html#west-manifests) may also be of use.
+The pixel positions and widget bounds are listed in [the widget restyle proposal](docs/widget-restyle-proposal.md).
 
-## Module User Guide
+## SVG tooling
 
-1. Add dependency to your config/west.yml.
+The validator, previewer, and bitmap-header generator use `uv` to provide Python dependencies in an isolated cached environment; Pillow is not installed into your selected Python. `rsvg-convert` must be available on `PATH` for rasterization.
 
-   ```yml
-   manifest:
-       remotes:
-           ...
-           - name: cormoran
-           url-base: https://github.com/cormoran
-       projects:
-           ...
-           - name: zmk-module-template
-           remote: cormoran
-           revision: main # or latest commit hash
-           # import: true # if this module has other dependencies
-           ...
-   ```
-
-2. Enable flag in your config/<shield>.conf
-
-   ```conf
-   CONFIG_YOUR_MODULE_NAME=y
-   ```
-
-3. Update your <keyboard>.keymap like .....
-
-   ```
-   / {
-       ...
-   }
-   ```
-
-## Module Development Guide
-
-### Setup for running test
-
-#### Option0: Dev container (recommended)
-
-Open this repository in VS Code with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers). The container automatically initializes the west workspace using the isolated layout.
-
-#### Option1: west workspace directory layout
-
-Set west topdir as parent of repository root and download dependencies under `../`.
-This layout is useful to reduce disk usage by sharing dependencies with other zephyr modules.
-The build result is located in `../build`.
-
-```bash
-mkdir west-workspace
-cd west-workspace # this directory becomes west workspace root (topdir)
-git clone <this repository>
-# rm -r .west # if exists to reset workspace
-west init -l . --mf west/west-test-workspace.yml
-west update --narrow
-west zephyr-export
+```sh
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py validate docs/nice-view-plus-preview.svg
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.central.json --role central --output /tmp/nice_view_plus_central.png
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.peripheral.json --role peripheral --output /tmp/nice_view_plus_peripheral.png
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/nice-view-plus-preview.svg --output /tmp/nice_view_plus_svg.h
+uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_svg
 ```
 
-#### Option2: isolated directory layout
+The preview tool also supports `--rotate-180` for inspecting an artwork variant. This only rotates the generated preview image; it does not change firmware display orientation.
 
-Set west topdir as repository root and download dependencies under `./dependencies`.
-This layout is useful if you don't want to share dependencies to other zephyr modules.
-Dev container and github actions uses this layout.
-The build result is located in `./build`.
+Dynamic elements use `data-nvp-bind`, `data-nvp-render`, and optional `data-nvp-role` SVG attributes. Their typed field definitions live in `tools/status_fields.json`; sample values for each half are in `tools/sample_status.*.json`. SVGs are limited to 22 dynamic bindings to keep the LVGL object budget bounded; firmware pool use still needs to be verified on device.
 
-```bash
-git clone <this repository>
-cd <cloned directory>
-west init -l west --mf west-test-isolated.yml
-west update --narrow
-west zephyr-export
+For the screen and widget authoring format, supported widget types, dynamic icon states, and new-screen workflow, see [Screen and Widget Authoring](docs/widget-authoring.md). A validated example is available at [widget-example.svg](docs/widget-example.svg).
+
+The examples in [docs/examples](docs/examples/) can be validated, previewed, and generated as firmware theme headers using the commands in the authoring guide.
+
+| Example | Highlights |
+| --- | --- |
+| [activity.svg](docs/examples/activity.svg) | Paired battery progress rings with charging marks and compact status details. |
+| [cards.svg](docs/examples/cards.svg) | Segmented battery, layer, and host cards above a BLE profile row. |
+| [compact.svg](docs/examples/compact.svg) | Prominent battery meters and layer number with host and split status in the footer. |
+| [infograph.svg](docs/examples/infograph.svg) | Circular battery complications with layer, host, and BLE profile status. |
+| [rounded.svg](docs/examples/rounded.svg) | Rounded battery panels, a pill-shaped layer display, and BLE profile selector. |
+| [terminal.svg](docs/examples/terminal.svg) | Monospace status readout with battery bars, host output, and profile indicators. |
+| [three-column.svg](docs/examples/three-column.svg) | Narrow battery, layer, and host columns with BLE profiles along the bottom. |
+| [watch.svg](docs/examples/watch.svg) | Watch-face layout with battery bars, a circular layer complication, and host status. |
+
+## Use the module
+
+Add the module to the `projects` list in your configuration's `config/west.yml`:
+
+```yaml
+manifest:
+    projects:
+        - name: zmk-module-nice-view-svg
+            url: https://github.com/MicheleYin/zmk-module-nice-view-svg
+            revision: main
 ```
 
-### Pre-commit
+In the configuration file used by each half, disable Nice!view's built-in screen and enable Nice!view Plus:
 
-Every commit need to pass pre-commit verification. The verification contains formatting code and running tests.
-
-```
-pip install pre-commit
-pre-commit install
-
-# Run pre-commit manually
-pre-commit run --all-files
-# Run for git staged files
-pre-commit run
+```conf
+CONFIG_NICE_VIEW_WIDGET_STATUS=n
+CONFIG_ZMK_NICE_VIEW_PLUS=y
 ```
 
-### Running Test
+To highlight the right side in the split indicator, set this only in the right half's configuration:
 
-```bash
-# Run unit test + build test and verify the results
-python3 -m unittest
-# Run build test directly
-west zmk-build tests/zmk-config
-# Run unit test directly
-west zmk-test tests -m .
+```conf
+CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF=y
 ```
 
-### Coding agent on actions
+Keep `nice_view` in the shield list and ensure Settings/NVS is enabled for persistent layouts. The module requires `ZMK_DISPLAY` and Settings; split BLE status synchronization is selected automatically for split BLE builds.
 
-Actions for github copilot and claude are available.
-
-- Mention `@copilot`
-- Setup `ANTHROPIC_API_KEY` secret and mention `@claude`
-  - Or fix [claude.yml](./github/workflows/claude.yml) to use `CLAUDE_CODE_OAUTH_TOKEN`
+The status screen supports generated SVG artwork with `CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y`. Select the default, day, or night theme independently per firmware image. The Sofle GitHub Actions build selects the sun/day design for the left screen and moon/night for the right; the default theme matches `docs/screens/default.svg`. Edit the source and regenerate its checked-in header as described in [Screen and Widget Authoring](docs/widget-authoring.md). Version-1 saved layout records fall back to the version-2 defaults.

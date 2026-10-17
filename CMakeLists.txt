@@ -1,0 +1,7 @@
+if(CONFIG_ZMK_NICE_VIEW_PLUS)
+	target_include_directories(app PRIVATE include)
+	target_sources(app PRIVATE src/layout.c src/status_screen.c)
+	if(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN)
+		target_sources(app PRIVATE src/svg_screen.c)
+	endif()
+endif()

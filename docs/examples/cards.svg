@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="340"
+     viewBox="0 0 160 68" shape-rendering="crispEdges">
+  <title>Concept 4 — Segmented Cards</title>
+  <rect width="160" height="68" fill="#fff"/>
+
+  <!-- Main card outlines -->
+  <g fill="none" stroke="#000">
+    <rect x="2.5" y="2.5" width="50" height="43" rx="3"/>
+    <rect x="55.5" y="2.5" width="49" height="43" rx="3"/>
+    <rect x="107.5" y="2.5" width="50" height="43" rx="3"/>
+    <rect x="2.5" y="48.5" width="155" height="17" rx="3"/>
+  </g>
+
+  <!-- Battery card -->
+  <g id="battery-left" data-nvp-widget="battery">
+    <text x="7" y="11" font-family="monospace" font-size="7">LEFT</text>
+    <text x="7" y="23" font-family="monospace" font-size="12"
+          font-weight="bold" data-nvp-slot="level"
+          data-nvp-bind="battery.left.percent"
+          data-nvp-render="percent">87%</text>
+    <rect x="7" y="26" width="39" height="4" fill="none" stroke="#000"/>
+    <rect x="8" y="27" width="33" height="2" fill="#000"
+          data-nvp-slot="level" data-nvp-bind="battery.left.percent"
+          data-nvp-render="bar"/>
+    <path d="M39 13L36 18H39L38 23L44 17H41L43 13Z"
+          fill="#000"
+          data-nvp-slot="charge" data-nvp-bind="battery.left.charge"
+          data-nvp-render="visible" data-nvp-when="charging"
+          data-nvp-bounds="36,13,8,10"/>
+  </g>
+
+  <g id="battery-right" data-nvp-widget="battery">
+    <text x="7" y="38" font-family="monospace" font-size="7">RIGHT</text>
+    <text x="31" y="38" font-family="monospace" font-size="9"
+          font-weight="bold" data-nvp-slot="level"
+          data-nvp-bind="battery.right.percent"
+          data-nvp-render="percent">64%</text>
+    <rect x="7" y="41" width="39" height="2" fill="none" stroke="#000"/>
+    <rect x="7" y="41" width="25" height="2" fill="#000"
+          data-nvp-slot="level" data-nvp-bind="battery.right.percent"
+          data-nvp-render="bar"/>
+  </g>
+
+  <!-- Layer card -->
+  <g id="layer-display" data-nvp-widget="layer">
+    <text x="80" y="11" text-anchor="middle"
+          font-family="monospace" font-size="7">LAYER</text>
+    <text x="80" y="38" text-anchor="middle"
+          font-family="monospace" font-size="29" font-weight="bold"
+          data-nvp-slot="value" data-nvp-bind="layer.index"
+          data-nvp-render="text">0</text>
+  </g>
+
+  <!-- Host card -->
+  <g id="connection-status" data-nvp-widget="connection">
+    <text x="133" y="11" text-anchor="middle"
+          font-family="monospace" font-size="7">HOST</text>
+    <g data-nvp-slot="selected" data-nvp-bind="output.selected"
+       data-nvp-render="visible" data-nvp-when="usb"
+       data-nvp-bounds="115,19,36,17">
+      <rect x="115" y="19" width="36" height="17" rx="2" fill="#000"/>
+      <text x="133" y="31" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="9">USB</text>
+    </g>
+    <g data-nvp-slot="selected" data-nvp-bind="output.selected"
+       data-nvp-render="visible" data-nvp-when="ble"
+       data-nvp-bounds="115,19,36,17">
+      <rect x="115" y="19" width="36" height="17" rx="2" fill="#000"/>
+      <text x="133" y="31" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="9">BLE</text>
+    </g>
+    <g data-nvp-slot="selected" data-nvp-bind="output.selected"
+       data-nvp-render="visible" data-nvp-when="none"
+       data-nvp-bounds="115,19,36,17">
+      <rect x="115" y="19" width="36" height="17" rx="2"
+            fill="#fff" stroke="#000"/>
+      <text x="133" y="31" text-anchor="middle"
+            font-family="monospace" font-size="9">--</text>
+    </g>
+  </g>
+
+  <!-- Bottom BLE card -->
+  <text x="8" y="60" font-family="monospace" font-size="7">BLE</text>
+
+  <g id="profile-1" data-nvp-widget="profile_tile">
+    <rect x="33" y="51" width="17" height="12" rx="2"
+          fill="#fff" stroke="#000"/>
+    <text x="41.5" y="60" text-anchor="middle"
+          font-family="monospace" font-size="8">1</text>
+    <g data-nvp-slot="active" data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible" data-nvp-when="0" data-nvp-bounds="33,51,17,12">
+      <rect x="33" y="51" width="17" height="12" rx="2" fill="#000"/>
+      <text x="41.5" y="60" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="8">1</text>
+    </g>
+    <circle cx="48" cy="53" r="1" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible" data-nvp-when="set"
+            data-nvp-bit="0" data-nvp-bounds="47,52,2,2"/>
+  </g>
+
+  <g id="profile-2" data-nvp-widget="profile_tile">
+    <rect x="54" y="51" width="17" height="12" rx="2"
+          fill="#fff" stroke="#000"/>
+    <text x="62.5" y="60" text-anchor="middle"
+          font-family="monospace" font-size="8">2</text>
+    <g data-nvp-slot="active" data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible" data-nvp-when="1" data-nvp-bounds="54,51,17,12">
+      <rect x="54" y="51" width="17" height="12" rx="2" fill="#000"/>
+      <text x="62.5" y="60" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="8">2</text>
+    </g>
+    <circle cx="69" cy="53" r="1" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible" data-nvp-when="set"
+            data-nvp-bit="1" data-nvp-bounds="68,52,2,2"/>
+  </g>
+
+  <g id="profile-3" data-nvp-widget="profile_tile">
+    <rect x="75" y="51" width="17" height="12" rx="2"
+          fill="#fff" stroke="#000"/>
+    <text x="83.5" y="60" text-anchor="middle"
+          font-family="monospace" font-size="8">3</text>
+    <g data-nvp-slot="active" data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible" data-nvp-when="2" data-nvp-bounds="75,51,17,12">
+      <rect x="75" y="51" width="17" height="12" rx="2" fill="#000"/>
+      <text x="83.5" y="60" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="8">3</text>
+    </g>
+    <circle cx="90" cy="53" r="1" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible" data-nvp-when="set"
+            data-nvp-bit="2" data-nvp-bounds="89,52,2,2"/>
+  </g>
+
+  <g id="profile-4" data-nvp-widget="profile_tile">
+    <rect x="96" y="51" width="17" height="12" rx="2"
+          fill="#fff" stroke="#000"/>
+    <text x="104.5" y="60" text-anchor="middle"
+          font-family="monospace" font-size="8">4</text>
+    <g data-nvp-slot="active" data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible" data-nvp-when="3" data-nvp-bounds="96,51,17,12">
+      <rect x="96" y="51" width="17" height="12" rx="2" fill="#000"/>
+      <text x="104.5" y="60" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="8">4</text>
+    </g>
+    <circle cx="111" cy="53" r="1" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible" data-nvp-when="set"
+            data-nvp-bit="3" data-nvp-bounds="110,52,2,2"/>
+  </g>
+
+  <g id="profile-5" data-nvp-widget="profile_tile">
+    <rect x="117" y="51" width="17" height="12" rx="2"
+          fill="#fff" stroke="#000"/>
+    <text x="125.5" y="60" text-anchor="middle"
+          font-family="monospace" font-size="8">5</text>
+    <g data-nvp-slot="active" data-nvp-bind="ble.active_profile"
+       data-nvp-render="visible" data-nvp-when="4" data-nvp-bounds="117,51,17,12">
+      <rect x="117" y="51" width="17" height="12" rx="2" fill="#000"/>
+      <text x="125.5" y="60" text-anchor="middle" fill="#fff"
+            font-family="monospace" font-size="8">5</text>
+    </g>
+    <circle cx="132" cy="53" r="1" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="ble.connected_profiles"
+            data-nvp-render="visible" data-nvp-when="set"
+            data-nvp-bit="4" data-nvp-bounds="131,52,2,2"/>
+  </g>
+
+  <g id="split-link" data-nvp-widget="split_link">
+    <circle cx="147" cy="57" r="3" fill="#000"
+            data-nvp-slot="connected" data-nvp-bind="split.connected"
+            data-nvp-render="visible" data-nvp-when="true"
+            data-nvp-role="peripheral" data-nvp-bounds="144,54,6,6"/>
+  </g>
+</svg>

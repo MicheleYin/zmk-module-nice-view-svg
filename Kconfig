@@ -1,0 +1,54 @@
+menuconfig ZMK_NICE_VIEW_PLUS
+    bool "Enable Nice!view Plus status screen"
+    depends on ZMK_DISPLAY && SETTINGS && SHIELD_NICE_VIEW
+    select LV_USE_IMAGE
+    select LV_USE_LABEL
+    select LV_USE_ARC
+    select LV_USE_THEME_MONO
+    select LV_FONT_UNSCII_8
+    select LV_FONT_MONTSERRAT_8
+    select LV_FONT_MONTSERRAT_12
+    select LV_FONT_MONTSERRAT_20
+    select ZMK_SPLIT_BLE_STATUS_SYNC if ZMK_SPLIT && ZMK_SPLIT_BLE
+    select ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING if ZMK_SPLIT_ROLE_CENTRAL && ZMK_SPLIT_BLE
+    help
+      Use the Nice!view Plus status screen and optional split status sync.
+
+config ZMK_NICE_VIEW_PLUS_SVG_SCREEN
+    bool "Use generated SVG status screen"
+    depends on ZMK_NICE_VIEW_PLUS
+    default n
+    help
+      Render the generated monochrome SVG artwork and native status bindings.
+      The screen header must be regenerated when the source SVG changes.
+
+    choice ZMK_NICE_VIEW_PLUS_SVG_THEME
+      prompt "Nice!view Plus SVG screen theme"
+      depends on ZMK_NICE_VIEW_PLUS_SVG_SCREEN
+      default ZMK_NICE_VIEW_PLUS_SVG_THEME_DEFAULT
+
+    config ZMK_NICE_VIEW_PLUS_SVG_THEME_DEFAULT
+      bool "Default"
+
+    config ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT
+      bool "Left"
+
+    config ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT
+      bool "Right"
+
+    endchoice
+
+    config ZMK_NICE_VIEW_PLUS_CENTRAL_RIGHT_HALF
+      bool "The split central is the physical right half"
+      depends on ZMK_NICE_VIEW_PLUS && ZMK_SPLIT
+      default n
+      help
+        Set this when the central firmware belongs to the physical right side.
+        This is separate from whether the current firmware runs on the central.
+
+config ZMK_NICE_VIEW_PLUS_RIGHT_HALF
+    bool "This Nice!view Plus display is on the right half"
+    depends on ZMK_NICE_VIEW_PLUS && ZMK_SPLIT
+    default n
+    help
+      Select the right half in the split indicator on this display.

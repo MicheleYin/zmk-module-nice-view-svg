@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "widgets": {
+    "battery": {
+      "description": "Battery level and optional charging indicator.",
+      "slots": {
+        "level": {
+          "fields": ["battery.central.percent", "battery.peripheral.percent", "battery.left.percent", "battery.right.percent"],
+          "renderers": ["bar", "percent", "ring"],
+          "required": true
+        },
+        "charge": {
+          "fields": ["battery.central.charge", "battery.peripheral.charge", "battery.left.charge", "battery.right.charge"],
+          "renderers": ["visible"],
+          "required": false
+        }
+      }
+    },
+    "layer": {
+      "description": "Active layer name or index.",
+      "slots": {
+        "value": {
+          "fields": ["layer.index", "layer.name"],
+          "renderers": ["text"],
+          "required": true
+        }
+      }
+    },
+    "profile_tile": {
+      "description": "One BLE profile tile; use one group per profile index.",
+      "slots": {
+        "active": {
+          "fields": ["ble.active_profile"],
+          "renderers": ["visible"],
+          "required": true
+        },
+        "connected": {
+          "fields": ["ble.connected_profiles"],
+          "renderers": ["visible"],
+          "required": false
+        }
+      }
+    },
+    "connection": {
+      "description": "Endpoint label or state-specific endpoint artwork.",
+      "slots": {
+        "selected": {
+          "fields": ["output.selected"],
+          "renderers": ["text", "visible"],
+          "required": true
+        }
+      }
+    },
+    "split_indicator": {
+      "description": "Physical display side and optional split-link state.",
+      "slots": {
+        "half": {
+          "fields": ["display.half"],
+          "renderers": ["visible"],
+          "required": true
+        },
+        "connected": {
+          "fields": ["split.connected"],
+          "renderers": ["visible"],
+          "required": false
+        }
+      }
+    },
+    "split_link": {
+      "description": "Show a connected marker on the peripheral display when the split link is up.",
+      "slots": {
+        "connected": {
+          "fields": ["split.connected"],
+          "renderers": ["visible"],
+          "required": true
+        }
+      }
+    }
+  }
+}

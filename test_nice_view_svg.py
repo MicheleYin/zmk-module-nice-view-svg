@@ -7,6 +7,7 @@ from pathlib import Path
 
 from tools.nice_view_svg import (
     MAX_DYNAMIC_BINDINGS,
+    _compile_visible_assets,
     _generate_header,
     _isolated_visible_svg,
     _load_pillow_image,
@@ -53,6 +54,27 @@ class NiceViewSvgValidationTests(unittest.TestCase):
                     svg_path.read_text(), FIELDS, widget_catalog=WIDGETS
                 )
                 self.assertEqual(errors, [])
+
+    def test_day_and_night_ble_assets_contain_visible_pixels(self):
+        for theme in ("day", "night"):
+            with self.subTest(theme=theme):
+                svg_text = (ROOT / "docs" / "screens" / f"{theme}.svg").read_text()
+                root = ET.fromstring(svg_text)
+                assets = _compile_visible_assets(svg_text)
+                for index, element in enumerate(root.iter()):
+                    if element.get("data-nvp-bind") not in {
+                        "ble.active_profile",
+                        "ble.connected_profiles",
+                    }:
+                        continue
+                    with self.subTest(
+                        field=element.get("data-nvp-bind"),
+                        slot=element.get("data-nvp-slot"),
+                    ):
+                        self.assertTrue(
+                            any(assets[index][2]),
+                            "BLE state asset rasterized as transparent",
+                        )
 
     def test_time_field_is_removed_from_themes_and_catalog(self):
         self.assertNotIn("time.current", FIELDS)

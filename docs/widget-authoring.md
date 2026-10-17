@@ -23,22 +23,22 @@ The preview-only `--rotate-180` switch rotates a PNG for inspection. It does not
 
 ## Use an Example in Firmware
 
-Choose a theme and generate its header. For example, to use the three-column screen as the day theme:
+Choose a side and generate its header. For example, to use the three-column screen as the left-side design:
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/examples/three-column.svg --output src/generated_day_screen.h
 ```
 
-Enable the SVG screen and day theme in that firmware image:
+Enable the SVG screen and left-side design in that firmware image:
 
 ```conf
 CONFIG_ZMK_NICE_VIEW_PLUS=y
 CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_DAY=y
+CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT=y
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
-The `default`, `day`, and `night` theme options select `src/generated_screen.h`, `src/generated_day_screen.h`, and `src/generated_night_screen.h`, respectively. Generating an example into one of those paths replaces that theme header; keep the original SVG in `docs/examples/` so it can be regenerated later. The Sofle build matrix uses day on the left and night on the right.
+The `default`, `left`, and `right` selectors load `src/generated_screen.h`, `src/generated_day_screen.h`, and `src/generated_night_screen.h`, respectively. The left and right generated headers currently use the sun/day and moon/night artwork from `docs/screens/day.svg` and `docs/screens/night.svg`. Generating an example into one of those paths replaces that header; keep its source SVG so it can be regenerated later. The Sofle build matrix selects left on the left half and right on the right half.
 
 ## Authoring Rules
 

@@ -32,30 +32,75 @@ Dynamic elements use `data-nvp-bind`, `data-nvp-render`, and optional `data-nvp-
 
 For the screen and widget authoring format, supported widget types, dynamic icon states, and new-screen workflow, see [Screen and Widget Authoring](docs/widget-authoring.md). A validated example is available at [widget-example.svg](docs/widget-example.svg).
 
-The examples in [docs/examples](docs/examples/) can be validated, previewed, and generated as firmware theme headers using the commands in the authoring guide.
+The designs in [docs/examples](docs/examples/) and themes in [docs/screens](docs/screens/) can be validated, previewed, and generated as firmware theme headers using the commands in the authoring guide.
 
-| Example | Highlights |
-| --- | --- |
-| [activity.svg](docs/examples/activity.svg) | Paired battery progress rings with charging marks and compact status details. |
-| [cards.svg](docs/examples/cards.svg) | Segmented battery, layer, and host cards above a BLE profile row. |
-| [compact.svg](docs/examples/compact.svg) | Prominent battery meters and layer number with host and split status in the footer. |
-| [infograph.svg](docs/examples/infograph.svg) | Circular battery complications with layer, host, and BLE profile status. |
-| [rounded.svg](docs/examples/rounded.svg) | Rounded battery panels, a pill-shaped layer display, and BLE profile selector. |
-| [terminal.svg](docs/examples/terminal.svg) | Monospace status readout with battery bars, host output, and profile indicators. |
-| [three-column.svg](docs/examples/three-column.svg) | Narrow battery, layer, and host columns with BLE profiles along the bottom. |
-| [watch.svg](docs/examples/watch.svg) | Watch-face layout with battery bars, a circular layer complication, and host status. |
+| Example | Preview | Highlights |
+| --- | --- | --- |
+| [activity.svg](docs/examples/activity.svg) | <img src="docs/examples/activity.svg" alt="Activity ring example" width="160"> | Paired battery progress rings with charging marks and compact status details. |
+| [cards.svg](docs/examples/cards.svg) | <img src="docs/examples/cards.svg" alt="Segmented cards example" width="160"> | Segmented battery, layer, and host cards above a BLE profile row. |
+| [compact.svg](docs/examples/compact.svg) | <img src="docs/examples/compact.svg" alt="Compact status example" width="160"> | Prominent battery meters and layer number with host and split status in the footer. |
+| [day.svg](docs/screens/day.svg) | <img src="docs/screens/day.svg" alt="Sun and mountain day screen" width="160"> | Sun/day theme used by the left Sofle display. |
+| [infograph.svg](docs/examples/infograph.svg) | <img src="docs/examples/infograph.svg" alt="Infograph example" width="160"> | Circular battery complications with layer, host, and BLE profile status. |
+| [night.svg](docs/screens/night.svg) | <img src="docs/screens/night.svg" alt="Moon and stars night screen" width="160"> | Moon/night theme used by the right Sofle display. |
+| [rounded.svg](docs/examples/rounded.svg) | <img src="docs/examples/rounded.svg" alt="Rounded interface example" width="160"> | Rounded battery panels, a pill-shaped layer display, and BLE profile selector. |
+| [terminal.svg](docs/examples/terminal.svg) | <img src="docs/examples/terminal.svg" alt="Terminal status example" width="160"> | Monospace status readout with battery bars, host output, and profile indicators. |
+| [three-column.svg](docs/examples/three-column.svg) | <img src="docs/examples/three-column.svg" alt="Three-column status example" width="160"> | Narrow battery, layer, and host columns with BLE profiles along the bottom. |
+| [watch.svg](docs/examples/watch.svg) | <img src="docs/examples/watch.svg" alt="Watch face example" width="160"> | Watch-face layout with battery bars, a circular layer complication, and host status. |
 
-## Use the module
+### Different themes on each half
 
-Add the module to the `projects` list in your configuration's `config/west.yml`:
+Each half is built as a separate firmware image, so it can use a different screen theme. To use the sun/day screen on the left and the moon/night screen on the right, enable SVG screens in both images and select one theme per image:
+
+```conf
+# Both halves
+CONFIG_ZMK_NICE_VIEW_PLUS=y
+CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y
+CONFIG_NICE_VIEW_WIDGET_STATUS=n
+```
+
+```conf
+# Left half uses the sun/day artwork
+CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT=y
+```
+
+```conf
+# Right half uses the moon/night artwork
+CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT=y
+```
+
+## Compatibility and setup
+
+This module is currently supported with MicheleYin's ZMK fork on the `feature/nice-view` branch. It depends on that branch's split-BLE status synchronization and peripheral battery level/charge-state fetching, which let both Nice!view displays show central-owned status and the remote half's battery data. The module enables these fork-specific Kconfig features, so upstream ZMK or another revision is not a supported replacement.
+
+Pin both ZMK and this module in your configuration's `config/west.yml`:
 
 ```yaml
 manifest:
     projects:
+        - name: zmk
+            url: https://github.com/MicheleYin/zmk.git
+            revision: feature/nice-view
+            import: app/west.yml
         - name: zmk-module-nice-view-svg
             url: https://github.com/MicheleYin/zmk-module-nice-view-svg
-            revision: main
+            revision: feature/nice-view
 ```
+
+Update the projects after changing the manifest:
+
+```sh
+west update
+```
+
+For a new West workspace, initialize it from your configuration repository, then update and export Zephyr:
+
+```sh
+west init -l config
+west update
+west zephyr-export
+```
+
+## Use the module
 
 In the configuration file used by each half, disable Nice!view's built-in screen and enable Nice!view Plus:
 
@@ -72,4 +117,4 @@ CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF=y
 
 Keep `nice_view` in the shield list and ensure Settings/NVS is enabled for persistent layouts. The module requires `ZMK_DISPLAY` and Settings; split BLE status synchronization is selected automatically for split BLE builds.
 
-The status screen supports generated SVG artwork with `CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y`. Select the default, day, or night theme independently per firmware image. The Sofle GitHub Actions build selects the sun/day design for the left screen and moon/night for the right; the default theme matches `docs/screens/default.svg`. Edit the source and regenerate its checked-in header as described in [Screen and Widget Authoring](docs/widget-authoring.md). Version-1 saved layout records fall back to the version-2 defaults.
+The status screen supports generated SVG artwork with `CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y`. The left and right selectors load `src/generated_day_screen.h` and `src/generated_night_screen.h`; their editable SVG sources are `docs/screens/day.svg` and `docs/screens/night.svg`. The default theme matches `docs/screens/default.svg`. Edit a source and regenerate its checked-in header as described in [Screen and Widget Authoring](docs/widget-authoring.md). Version-1 saved layout records fall back to the version-2 defaults.

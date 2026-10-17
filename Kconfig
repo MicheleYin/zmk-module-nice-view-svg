@@ -30,11 +30,11 @@ config ZMK_NICE_VIEW_PLUS_SVG_SCREEN
     config ZMK_NICE_VIEW_PLUS_SVG_THEME_DEFAULT
       bool "Default"
 
-    config ZMK_NICE_VIEW_PLUS_SVG_THEME_DAY
-      bool "Day"
+    config ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT
+      bool "Left"
 
-    config ZMK_NICE_VIEW_PLUS_SVG_THEME_NIGHT
-      bool "Night"
+    config ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT
+      bool "Right"
 
     endchoice
 

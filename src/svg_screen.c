@@ -21,9 +21,9 @@
 
 #include <lvgl.h>
 
-#if IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_DAY)
+#if IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT)
 #include "generated_day_screen.h"
-#elif IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_NIGHT)
+#elif IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT)
 #include "generated_night_screen.h"
 #else
 #include "generated_screen.h"

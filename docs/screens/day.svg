@@ -8,8 +8,7 @@
   <!-- ================= BACKGROUND ================= -->
 
   <rect width="160" height="68" fill="#fff"/>
-
-  <!-- Sun -->
+ <!-- Sun -->
   <circle cx="92" cy="22" r="10" fill="#000"/>
 
   <g stroke="#000" stroke-width="1.5">
@@ -23,10 +22,6 @@
              M82 32L79 35"/>
   </g>
 
-  <!-- Cloud -->
-  <path d="M67 19Q71 14 76 18Q81 13 86 18H90"
-        fill="none"
-        stroke="#000"/>
 
   <!-- Mountains -->
   <path d="M0 52L20 33L37 44L57 26L79 46L105 31L130 48L148 36L160 47V68H0Z"
@@ -144,7 +139,7 @@
 
     <!-- Battery fill -->
     <rect x="22" y="21"
-          width="15" height="4"
+          width="19" height="4"
           fill="#000"
           data-nvp-slot="level"
           data-nvp-bind="battery.right.percent"
@@ -208,16 +203,13 @@
   <!-- ================= BOTTOM STATUS PANEL ================= -->
 
   <rect x="2" y="49"
-        width="93" height="17"
+        width="75" height="17"
         rx="2"
         fill="#fff"
         stroke="#000"/>
 
-  <!-- BLE label -->
-  <text x="5" y="60"
-        font-family="monospace"
-        font-size="9"
-        font-weight="bold">BT</text>
+  <g transform="translate(-18,0)">
+
 
   <!-- ================= BLE PROFILE 1 ================= -->
 
@@ -463,6 +455,7 @@
             data-nvp-bounds="88,51,4,4"/>
 
   </g>
+</g>
 
   <!-- ================= HOST STATUS ================= -->
 
@@ -483,29 +476,6 @@
           data-nvp-render="text"
           data-nvp-format="output-label">USB</text>
 
-    <!-- USB indicator -->
-    <circle cx="126" cy="57" r="3"
-            fill="#000"
-            data-nvp-slot="selected"
-            data-nvp-bind="output.selected"
-            data-nvp-render="visible"
-            data-nvp-when="usb"
-            data-nvp-bounds="123,54,6,6"/>
-
-    <!-- BLE indicator -->
-    <circle cx="126" cy="57" r="3"
-            fill="#000"
-            data-nvp-slot="selected"
-            data-nvp-bind="output.selected"
-            data-nvp-render="visible"
-            data-nvp-when="ble"
-            data-nvp-bounds="123,54,6,6"/>
-
-    <text x="133" y="60"
-          font-family="monospace"
-          font-size="9"
-          font-weight="bold">S</text>
-
   </g>
 
   <!-- ================= SPLIT CONNECTION ================= -->
@@ -516,7 +486,6 @@
        data-nvp-bind="split.connected"
        data-nvp-render="visible"
        data-nvp-when="true"
-       data-nvp-role="peripheral"
        data-nvp-bounds="140,52,15,11">
 
       <rect x="140" y="52"
@@ -532,6 +501,16 @@
             fill="#fff">OK</text>
 
     </g>
+
+    <text x="147.5" y="60"
+          text-anchor="middle"
+          font-family="monospace"
+          font-size="8"
+          data-nvp-slot="connected"
+          data-nvp-bind="split.connected"
+          data-nvp-render="visible"
+          data-nvp-when="false"
+          data-nvp-bounds="140,52,15,11">NO</text>
 
   </g>
 

@@ -67,7 +67,7 @@
       }
     },
     "split_link": {
-      "description": "Show a connected marker on the peripheral display when the split link is up.",
+      "description": "Show split-link state on both displays; the central reflects any connected peripheral.",
       "slots": {
         "connected": {
           "fields": ["split.connected"],

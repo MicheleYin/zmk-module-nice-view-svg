@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="800" height="340"
+     viewBox="0 0 160 68"
+     shape-rendering="crispEdges">
+  <title>Typing pace</title>
+  <rect width="160" height="68" fill="#fff"/>
+  <path d="M7 18H153M80 6V62" stroke="#000"/>
+
+  <text x="40" y="12" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold">WORDS PER</text>
+  <text x="40" y="25" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold">MINUTE</text>
+  <text x="40" y="52" text-anchor="middle" font-family="monospace" font-size="17" font-weight="bold">WPM</text>
+
+  <text x="120" y="13" text-anchor="middle" font-family="monospace" font-size="7" font-weight="bold">CURRENT</text>
+  <text x="120" y="51"
+        text-anchor="middle"
+        font-family="monospace"
+        font-size="24"
+        font-weight="bold"
+        data-nvp-bind="wpm.current"
+        data-nvp-render="text">42</text>
+</svg>

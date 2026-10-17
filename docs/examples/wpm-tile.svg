@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="800" height="340"
+     viewBox="0 0 160 68"
+     shape-rendering="crispEdges">
+  <title>High-contrast WPM tile</title>
+  <rect width="160" height="68" fill="#fff"/>
+  <rect x="5" y="5" width="150" height="58" fill="#000"/>
+
+  <text x="80" y="20" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#fff">WPM</text>
+  <text x="80" y="48"
+        text-anchor="middle"
+        font-family="monospace"
+        font-size="22"
+        font-weight="bold"
+        fill="#fff"
+        data-nvp-bind="wpm.current"
+        data-nvp-render="text">42</text>
+  <text x="80" y="58" text-anchor="middle" font-family="monospace" font-size="7" fill="#fff">TYPING PACE</text>
+</svg>

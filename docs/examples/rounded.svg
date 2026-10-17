@@ -17,13 +17,7 @@
     <rect x="2" y="2" width="49" height="29"
           rx="7" fill="#000"/>
 
-    <text x="9" y="11"
-          font-family="sans-serif"
-          font-size="6"
-          font-weight="bold"
-          fill="#fff">LEFT</text>
-
-    <text x="9" y="23"
+    <text x="9" y="18"
           font-family="sans-serif"
           font-size="13"
           font-weight="bold"
@@ -32,11 +26,7 @@
           data-nvp-bind="battery.left.percent"
           data-nvp-render="percent">87%</text>
 
-    <!-- Rounded progress track -->
-    <rect x="9" y="26" width="34" height="2.5"
-          rx="1.25" fill="#777"/>
-
-    <rect x="9" y="26" width="29" height="2.5"
+    <rect x="9" y="22" width="29" height="5"
           rx="1.25" fill="#fff"
           data-nvp-slot="level"
           data-nvp-bind="battery.left.percent"
@@ -60,23 +50,14 @@
     <rect x="2" y="34" width="49" height="29"
           rx="7" fill="#fff" stroke="#000"/>
 
-    <text x="9" y="43"
-          font-family="sans-serif"
-          font-size="6"
-          font-weight="bold">RIGHT</text>
-
-    <text x="9" y="55"
+    <text x="9" y="50"
           font-family="sans-serif"
           font-size="13"
           font-weight="bold"
           data-nvp-slot="level"
           data-nvp-bind="battery.right.percent"
           data-nvp-render="percent">64%</text>
-
-    <rect x="9" y="58" width="34" height="2.5"
-          rx="1.25" fill="#ddd"/>
-
-    <rect x="9" y="58" width="22" height="2.5"
+    <rect x="9" y="54" width="29" height="5"
           rx="1.25" fill="#000"
           data-nvp-slot="level"
           data-nvp-bind="battery.right.percent"
@@ -127,10 +108,10 @@
        data-nvp-when="usb"
        data-nvp-bounds="108,2,50,19">
 
-      <text x="133" y="14"
+      <text x="133" y="16"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="9"
+            font-size="14"
             font-weight="bold"
             fill="#fff">USB</text>
 
@@ -142,10 +123,10 @@
        data-nvp-when="ble"
        data-nvp-bounds="108,2,50,19">
 
-      <text x="133" y="14"
+      <text x="133" y="16"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="9"
+            font-size="14"
             font-weight="bold"
             fill="#fff">BLE</text>
 
@@ -157,10 +138,10 @@
        data-nvp-when="none"
        data-nvp-bounds="108,2,50,19">
 
-      <text x="133" y="14"
+      <text x="133" y="16"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="9"
+            font-size="14"
             font-weight="bold"
             fill="#fff">OFF</text>
 
@@ -170,25 +151,19 @@
 
   <!-- ================= BLE PROFILE SELECTOR ================= -->
 
-  <rect x="108" y="24" width="50" height="25"
-        rx="8" fill="#fff" stroke="#000"/>
-
-  <text x="133" y="32"
-        text-anchor="middle"
-        font-family="sans-serif"
-        font-size="6"
-        font-weight="bold">BLUETOOTH</text>
+  <!-- <rect x="108" y="24" width="50" height="25"
+        rx="8" fill="#fff" stroke="#000"/> -->
 
   <!-- PROFILE 1 -->
   <g id="profile-1" data-nvp-widget="profile_tile">
 
-    <circle cx="116" cy="41" r="5"
+    <circle cx="116" cy="35" r="5.5"
             fill="#fff" stroke="#000"/>
 
-    <text x="116" y="43"
+    <text x="116" y="39"
           text-anchor="middle"
           font-family="sans-serif"
-          font-size="6">1</text>
+          font-size="12">1</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -196,17 +171,17 @@
        data-nvp-when="0"
        data-nvp-bounds="111,36,10,10">
 
-      <circle cx="116" cy="41" r="5" fill="#000"/>
+      <circle cx="116" cy="35" r="5.5" fill="#000"/>
 
-      <text x="116" y="43"
+      <text x="116" y="39"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="6"
+            font-size="12"
             fill="#fff">1</text>
 
     </g>
 
-    <circle cx="119" cy="37" r="1"
+    <circle cx="119" cy="27" r="1"
             fill="#000"
             data-nvp-slot="connected"
             data-nvp-bind="ble.connected_profiles"
@@ -220,13 +195,13 @@
   <!-- PROFILE 2 -->
   <g id="profile-2" data-nvp-widget="profile_tile">
 
-    <circle cx="125" cy="41" r="5"
+    <circle cx="125" cy="35" r="5.5"
             fill="#fff" stroke="#000"/>
 
-    <text x="125" y="43"
+    <text x="125" y="39"
           text-anchor="middle"
           font-family="sans-serif"
-          font-size="6">2</text>
+          font-size="12">2</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -234,17 +209,17 @@
        data-nvp-when="1"
        data-nvp-bounds="120,36,10,10">
 
-      <circle cx="125" cy="41" r="5" fill="#000"/>
+      <circle cx="125" cy="35" r="5.5" fill="#000"/>
 
-      <text x="125" y="43"
+      <text x="125" y="39"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="6"
+            font-size="12"
             fill="#fff">2</text>
 
     </g>
 
-    <circle cx="128" cy="37" r="1"
+    <circle cx="128" cy="27" r="1"
             fill="#000"
             data-nvp-slot="connected"
             data-nvp-bind="ble.connected_profiles"
@@ -258,13 +233,13 @@
   <!-- PROFILE 3 -->
   <g id="profile-3" data-nvp-widget="profile_tile">
 
-    <circle cx="134" cy="41" r="5"
+    <circle cx="134" cy="35" r="5.5"
             fill="#fff" stroke="#000"/>
 
-    <text x="134" y="43"
+    <text x="134" y="39"
           text-anchor="middle"
           font-family="sans-serif"
-          font-size="6">3</text>
+          font-size="12">3</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -272,17 +247,17 @@
        data-nvp-when="2"
        data-nvp-bounds="129,36,10,10">
 
-      <circle cx="134" cy="41" r="5" fill="#000"/>
+      <circle cx="134" cy="35" r="5.5" fill="#000"/>
 
-      <text x="134" y="43"
+      <text x="134" y="39"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="6"
+            font-size="12"
             fill="#fff">3</text>
 
     </g>
 
-    <circle cx="137" cy="37" r="1"
+    <circle cx="137" cy="27" r="1"
             fill="#000"
             data-nvp-slot="connected"
             data-nvp-bind="ble.connected_profiles"
@@ -296,13 +271,13 @@
   <!-- PROFILE 4 -->
   <g id="profile-4" data-nvp-widget="profile_tile">
 
-    <circle cx="143" cy="41" r="5"
+    <circle cx="143" cy="35" r="5.5"
             fill="#fff" stroke="#000"/>
 
-    <text x="143" y="43"
+    <text x="143" y="39"
           text-anchor="middle"
           font-family="sans-serif"
-          font-size="6">4</text>
+          font-size="12">4</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -310,17 +285,17 @@
        data-nvp-when="3"
        data-nvp-bounds="138,36,10,10">
 
-      <circle cx="143" cy="41" r="5" fill="#000"/>
+      <circle cx="143" cy="35" r="5.5" fill="#000"/>
 
-      <text x="143" y="43"
+      <text x="143" y="39"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="6"
+            font-size="12"
             fill="#fff">4</text>
 
     </g>
 
-    <circle cx="146" cy="37" r="1"
+    <circle cx="146" cy="27" r="1"
             fill="#000"
             data-nvp-slot="connected"
             data-nvp-bind="ble.connected_profiles"
@@ -334,13 +309,13 @@
   <!-- PROFILE 5 -->
   <g id="profile-5" data-nvp-widget="profile_tile">
 
-    <circle cx="152" cy="41" r="5"
+    <circle cx="152" cy="35" r="5.5"
             fill="#fff" stroke="#000"/>
 
-    <text x="152" y="43"
+    <text x="152" y="39"
           text-anchor="middle"
           font-family="sans-serif"
-          font-size="6">5</text>
+          font-size="12">5</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -348,17 +323,17 @@
        data-nvp-when="4"
        data-nvp-bounds="147,36,10,10">
 
-      <circle cx="152" cy="41" r="5" fill="#000"/>
+      <circle cx="152" cy="35" r="5.5" fill="#000"/>
 
-      <text x="152" y="43"
+      <text x="152" y="39"
             text-anchor="middle"
             font-family="sans-serif"
-            font-size="6"
+            font-size="12"
             fill="#fff">5</text>
 
     </g>
 
-    <circle cx="155" cy="37" r="1"
+    <circle cx="155" cy="27" r="1"
             fill="#000"
             data-nvp-slot="connected"
             data-nvp-bind="ble.connected_profiles"
@@ -366,29 +341,6 @@
             data-nvp-when="set"
             data-nvp-bit="4"
             data-nvp-bounds="154,36,2,2"/>
-
-  </g>
-
-  <!-- ================= SPLIT STATUS ================= -->
-
-  <g id="split-link" data-nvp-widget="split_link">
-
-    <rect x="108" y="52" width="50" height="11"
-          rx="5.5" fill="#fff" stroke="#000"/>
-
-    <text x="119" y="59.5"
-          font-family="sans-serif"
-          font-size="6"
-          font-weight="bold">SPLIT</text>
-
-    <circle cx="148" cy="57.5" r="3"
-            fill="#000"
-            data-nvp-slot="connected"
-            data-nvp-bind="split.connected"
-            data-nvp-render="visible"
-            data-nvp-when="true"
-            data-nvp-role="peripheral"
-            data-nvp-bounds="145,54.5,6,6"/>
 
   </g>
 

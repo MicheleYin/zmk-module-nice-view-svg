@@ -9,6 +9,7 @@
     "battery.right.charge": "discharging",
     "ble.active_profile": 0,
     "ble.connected_profiles": 5,
+    "wpm.current": 42,
     "output.selected": "usb",
     "layer.index": 0,
     "display.half": "left"

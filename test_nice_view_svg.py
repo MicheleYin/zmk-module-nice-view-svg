@@ -10,6 +10,7 @@ from tools.nice_view_svg import (
     _generate_header,
     _isolated_visible_svg,
     _load_pillow_image,
+    _monochrome_preview_png,
     _pack_i2_pixels,
     _pack_monochrome_pixels,
     _rotate_png_180,
@@ -18,6 +19,7 @@ from tools.nice_view_svg import (
     preview_svg_text,
     validate_svg_text,
 )
+from tools.nice_view_svg_live import build_preview_config
 
 ROOT = Path(__file__).parent
 CATALOG_PATH = ROOT / "tools" / "status_fields.json"
@@ -52,6 +54,14 @@ class NiceViewSvgValidationTests(unittest.TestCase):
                 )
                 self.assertEqual(errors, [])
 
+    def test_time_field_is_removed_from_themes_and_catalog(self):
+        self.assertNotIn("time.current", FIELDS)
+        for theme in ("day", "night"):
+            with self.subTest(theme=theme):
+                root = ET.parse(ROOT / "docs" / "screens" / f"{theme}.svg").getroot()
+                bindings = {element.get("data-nvp-bind") for element in root.iter()}
+                self.assertNotIn("time.current", bindings)
+
     def test_documentation_examples_validate_against_widget_catalog(self):
         examples = sorted((ROOT / "docs" / "examples").glob("*.svg"))
         self.assertTrue(examples, "No documentation SVG examples found")
@@ -67,6 +77,99 @@ class NiceViewSvgValidationTests(unittest.TestCase):
                     values = values_document.get("values", values_document)
                     preview = preview_svg_text(svg_text, FIELDS, values, role, WIDGETS)
                     ET.fromstring(preview)
+
+    def test_live_preview_config_exposes_all_bound_fields_and_renderers(self):
+        examples = sorted((ROOT / "docs" / "examples").glob("*.svg"))
+        renderer_types = set()
+        for svg_path in examples:
+            config = build_preview_config(svg_path)
+            source = ET.parse(svg_path).getroot()
+            expected_fields = {
+                element.get("data-nvp-bind")
+                for element in source.iter()
+                if element.get("data-nvp-bind")
+            }
+            bindings = {binding["id"]: binding for binding in config["bindings"]}
+            self.assertEqual(set(bindings), expected_fields)
+            self.assertIn("central", config["values"])
+            self.assertIn("peripheral", config["values"])
+            for binding in bindings.values():
+                renderer_types.update(binding["renderers"])
+                self.assertIn(binding["id"], config["values"]["central"])
+                self.assertIn(binding["id"], config["values"]["peripheral"])
+        self.assertEqual(renderer_types, {"bar", "percent", "ring", "text", "visible"})
+
+    def test_split_connected_is_available_on_both_roles(self):
+        field = FIELDS["split.connected"]
+        self.assertEqual(set(field["available_on"]), {"central", "peripheral"})
+        self.assertEqual(
+            set(field["sources"]),
+            {"central", "peripheral"},
+        )
+        for theme in ("default", "day", "night"):
+            with self.subTest(theme=theme):
+                path = ROOT / "docs" / "screens" / f"{theme}.svg"
+                config = build_preview_config(path)
+                binding = next(
+                    item
+                    for item in config["bindings"]
+                    if item["id"] == "split.connected"
+                )
+                self.assertEqual(binding["roles"], ["central", "peripheral"])
+                for role in ("central", "peripheral"):
+                    rendered = preview_svg_text(
+                        path.read_text(),
+                        FIELDS,
+                        {"split.connected": True},
+                        role,
+                        WIDGETS,
+                    )
+                    indicator = next(
+                        element
+                        for element in ET.fromstring(rendered).iter()
+                        if element.get("data-nvp-bind") == "split.connected"
+                    )
+                    self.assertIsNone(indicator.get("display"))
+
+    def test_wpm_examples_bind_wpm_for_both_roles(self):
+        for example in ("wpm.svg", "wpm-tile.svg"):
+            with self.subTest(example=example):
+                config = build_preview_config(ROOT / "docs" / "examples" / example)
+                bindings = {binding["id"]: binding for binding in config["bindings"]}
+                self.assertEqual(set(bindings), {"wpm.current"})
+                for binding in bindings.values():
+                    self.assertEqual(binding["roles"], ["central", "peripheral"])
+                self.assertEqual(config["values"]["central"]["wpm.current"], 42)
+
+    def test_day_theme_shows_both_split_connection_states(self):
+        svg = (ROOT / "docs" / "screens" / "day.svg").read_text()
+        for role in ("central", "peripheral"):
+            for connected in (True, False):
+                with self.subTest(role=role, connected=connected):
+                    rendered = preview_svg_text(
+                        svg,
+                        FIELDS,
+                        {"split.connected": connected},
+                        role,
+                        WIDGETS,
+                    )
+                    indicators = [
+                        element
+                        for element in ET.fromstring(rendered).iter()
+                        if element.get("data-nvp-bind") == "split.connected"
+                    ]
+                    visible = next(
+                        element
+                        for element in indicators
+                        if element.get("data-nvp-when") == str(connected).lower()
+                    )
+                    hidden = next(
+                        element
+                        for element in indicators
+                        if element.get("data-nvp-when") != str(connected).lower()
+                    )
+                    self.assertIsNone(visible.get("display"))
+                    self.assertEqual(hidden.get("display"), "none")
 
     def test_widget_slot_rejects_incompatible_field(self):
         svg = make_svg(
@@ -451,6 +554,18 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         self.assertEqual(
             _pack_monochrome_pixels(pixels, 8, 1, (8, 1)), bytes([0b10010110])
         )
+
+    def test_monochrome_preview_png_uses_firmware_threshold(self):
+        image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
+        source = image_module.new("L", (3, 1))
+        source.putdata([127, 128, 255])
+        png = BytesIO()
+        source.save(png, format="PNG")
+
+        monochrome = _monochrome_preview_png(png.getvalue())
+        with image_module.open(BytesIO(monochrome)) as result:
+            self.assertEqual(result.mode, "1")
+            self.assertEqual(result.get_flattened_data(), (0, 255, 255))
 
     def test_preview_rotation_flips_both_axes(self):
         image_module = _load_pillow_image("tests require uv and tools/requirements.txt")

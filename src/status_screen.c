@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
@@ -31,18 +32,20 @@
 #include <zmk_nice_view_plus/layout.h>
 #include "svg_screen.h"
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT) && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 #include <zmk/events/split_peripheral_status_changed.h>
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#include <zmk/split/bluetooth/central.h>
+#else
+#include <zmk/split/bluetooth/peripheral.h>
+#endif
 #endif
 
 #define MAX_BLE_PROFILES 8
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
-#include <zmk/split/bluetooth/peripheral.h>
-#endif
-
 static lv_obj_t *screen;
 static struct zmk_nvp_screen_state state;
+static void schedule_render(void);
 
 #if !IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN)
 static lv_obj_t *widgets[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT];
@@ -254,7 +257,7 @@ static int status_event_listener(const zmk_event_t *eh) {
     }
 #endif
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT) && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
     const struct zmk_split_peripheral_status_changed *split_status =
         as_zmk_split_peripheral_status_changed(eh);
     if (split_status) {
@@ -309,7 +312,7 @@ static int status_event_listener(const zmk_event_t *eh) {
 
 ZMK_LISTENER(nice_view_plus_status, status_event_listener);
 ZMK_SUBSCRIPTION(nice_view_plus_status, zmk_battery_state_changed);
-#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT) && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 ZMK_SUBSCRIPTION(nice_view_plus_status, zmk_split_peripheral_status_changed);
 #endif
 #if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) &&                                                   \
@@ -422,8 +425,15 @@ lv_obj_t *zmk_display_status_screen(void) {
 
 #endif
 
-#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT) && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+    state.split_connected = zmk_split_bt_central_is_connected();
+#else
     state.split_connected = zmk_split_bt_peripheral_is_connected();
+#endif
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_SPLIT) && !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
     state.peripheral_battery_level = zmk_battery_state_of_charge();
     state.peripheral_charge_state = zmk_battery_charge_state();
 #else

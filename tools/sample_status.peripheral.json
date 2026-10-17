@@ -9,6 +9,7 @@
     "battery.right.charge": "discharging",
     "ble.active_profile": 3,
     "ble.connected_profiles": 10,
+    "wpm.current": 42,
     "output.selected": "ble",
     "layer.index": 2,
     "display.half": "right"

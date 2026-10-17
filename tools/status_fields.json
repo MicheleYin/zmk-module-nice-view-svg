@@ -203,8 +203,16 @@
       "id": "split.connected",
       "type": "boolean",
       "owner": "split-link",
-      "available_on": ["peripheral"],
-      "sources": {"peripheral": "split_ble_connection_state"}
+      "available_on": ["central", "peripheral"],
+      "control_label": "Connected",
+      "role_descriptions": {
+        "central": "At least one peripheral is connected to this central.",
+        "peripheral": "This half is connected to the central."
+      },
+      "sources": {
+        "central": "zmk_split_bt_central_is_connected",
+        "peripheral": "split_ble_connection_state"
+      }
     },
     {
       "id": "wpm.current",

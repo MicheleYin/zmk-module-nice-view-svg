@@ -231,7 +231,7 @@
        data-nvp-bind="ble.active_profile"
        data-nvp-render="visible"
        data-nvp-when="0"
-       data-nvp-bounds="23,51,13,13">
+      data-nvp-bounds="5,51,13,13">
 
       <rect x="23" y="51"
             width="13" height="13"
@@ -256,7 +256,7 @@
             data-nvp-render="visible"
             data-nvp-when="set"
             data-nvp-bit="0"
-            data-nvp-bounds="32,51,4,4"/>
+            data-nvp-bounds="14,51,4,4"/>
 
   </g>
 
@@ -280,7 +280,7 @@
        data-nvp-bind="ble.active_profile"
        data-nvp-render="visible"
        data-nvp-when="1"
-       data-nvp-bounds="37,51,13,13">
+      data-nvp-bounds="19,51,13,13">
 
       <rect x="37" y="51"
             width="13" height="13"
@@ -305,7 +305,7 @@
             data-nvp-render="visible"
             data-nvp-when="set"
             data-nvp-bit="1"
-            data-nvp-bounds="46,51,4,4"/>
+            data-nvp-bounds="28,51,4,4"/>
 
   </g>
 
@@ -329,7 +329,7 @@
        data-nvp-bind="ble.active_profile"
        data-nvp-render="visible"
        data-nvp-when="2"
-       data-nvp-bounds="51,51,13,13">
+      data-nvp-bounds="33,51,13,13">
 
       <rect x="51" y="51"
             width="13" height="13"
@@ -354,7 +354,7 @@
             data-nvp-render="visible"
             data-nvp-when="set"
             data-nvp-bit="2"
-            data-nvp-bounds="60,51,4,4"/>
+            data-nvp-bounds="42,51,4,4"/>
 
   </g>
 
@@ -378,7 +378,7 @@
        data-nvp-bind="ble.active_profile"
        data-nvp-render="visible"
        data-nvp-when="3"
-       data-nvp-bounds="65,51,13,13">
+      data-nvp-bounds="47,51,13,13">
 
       <rect x="65" y="51"
             width="13" height="13"
@@ -403,7 +403,7 @@
             data-nvp-render="visible"
             data-nvp-when="set"
             data-nvp-bit="3"
-            data-nvp-bounds="74,51,4,4"/>
+            data-nvp-bounds="56,51,4,4"/>
 
   </g>
 
@@ -427,7 +427,7 @@
        data-nvp-bind="ble.active_profile"
        data-nvp-render="visible"
        data-nvp-when="4"
-       data-nvp-bounds="79,51,13,13">
+      data-nvp-bounds="61,51,13,13">
 
       <rect x="79" y="51"
             width="13" height="13"
@@ -452,7 +452,7 @@
             data-nvp-render="visible"
             data-nvp-when="set"
             data-nvp-bit="4"
-            data-nvp-bounds="88,51,4,4"/>
+            data-nvp-bounds="70,51,4,4"/>
 
   </g>
 </g>

@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nice!view SVG Live Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      color: #182421;
+      background: #edf1ee;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    header {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 20px;
+      color: #f6f7f4;
+      background: #182421;
+      border-bottom: 3px solid #c5e27a;
+    }
+    .brand { font-size: 14px; font-weight: 700; }
+    .source { color: #c4d0ca; font-size: 12px; overflow-wrap: anywhere; }
+    .role-control { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    select, input { font: inherit; }
+    select {
+      min-height: 32px;
+      border: 1px solid #aab8b1;
+      border-radius: 3px;
+      padding: 4px 8px;
+      color: #182421;
+      background: #fff;
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(290px, 370px);
+      min-height: calc(100vh - 55px);
+    }
+    .stage {
+      display: grid;
+      align-content: start;
+      justify-items: center;
+      gap: 12px;
+      padding: clamp(18px, 5vw, 64px);
+      border-right: 1px solid #cbd4ce;
+    }
+    .screen {
+      width: min(100%, 800px);
+      aspect-ratio: 160 / 68;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid #35433d;
+      background: #fff;
+      box-shadow: 0 12px 28px #18242120;
+    }
+    #preview { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    .screen-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      width: min(100%, 800px);
+      color: #53635c;
+      font-size: 11px;
+    }
+    #status { color: #45632a; text-align: right; }
+    aside { min-width: 0; background: #f8faf8; }
+    .controls-heading {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      padding: 15px 16px 12px;
+      border-bottom: 1px solid #cbd4ce;
+      background: #f8faf8;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    #fields { max-height: calc(100vh - 102px); overflow: auto; }
+    .field {
+      display: grid;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e0e6e2;
+    }
+    .field.disabled { opacity: .45; }
+    .field-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .field-name { font-size: 12px; overflow-wrap: anywhere; }
+    .field-kind { color: #697870; font-size: 10px; white-space: nowrap; }
+    .field-description { color: #53635c; font-size: 10px; line-height: 1.35; }
+    .field input[type="text"], .field input[type="number"] {
+      width: 100%;
+      min-height: 32px;
+      border: 1px solid #aab8b1;
+      border-radius: 3px;
+      padding: 5px 8px;
+      background: #fff;
+    }
+    .range-row { display: grid; grid-template-columns: 1fr 54px; align-items: center; gap: 10px; }
+    input[type="range"] { width: 100%; accent-color: #52752d; }
+    .range-value, .mask-value { color: #53635c; font-size: 11px; text-align: right; }
+    .toggle, .bit-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    .toggle input, .bit-toggle input { accent-color: #52752d; }
+    .bit-list { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+    @media (max-width: 760px) {
+      header { flex-wrap: wrap; padding: 10px 14px; }
+      main { grid-template-columns: 1fr; }
+      .stage { padding: 26px 14px; border-right: 0; border-bottom: 1px solid #cbd4ce; }
+      #fields { max-height: none; }
+      .controls-heading { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand">NICE!VIEW / LIVE SVG</div>
+      <div class="source" id="source"></div>
+    </div>
+    <label class="role-control">Display role
+      <select id="role">
+        <option value="central">Central</option>
+        <option value="peripheral">Peripheral</option>
+      </select>
+    </label>
+  </header>
+  <main>
+    <section class="stage" aria-label="Raster preview">
+      <div class="screen"><img id="preview" width="160" height="68" alt="Live rasterized Nice!view screen"></div>
+      <div class="screen-meta"><span>160 × 68 px · 1-bit monochrome</span><span id="status" aria-live="polite">Loading</span></div>
+    </section>
+    <aside>
+      <div class="controls-heading">Bound status fields</div>
+      <div id="fields"></div>
+    </aside>
+  </main>
+  <script type="module">
+    const roleSelect = document.querySelector("#role");
+    const fieldsRoot = document.querySelector("#fields");
+    const previewImage = document.querySelector("#preview");
+    const status = document.querySelector("#status");
+    const controlState = new Map();
+    let config;
+    let activeUrl;
+    let requestController;
+    let renderTimer;
+
+    function createEnumControl(field, editor, state) {
+      const select = document.createElement("select");
+      for (const value of field.values) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.append(option);
+      }
+      state.controls = [select];
+      state.read = () => select.value;
+      state.write = value => { select.value = value; };
+      editor.append(select);
+    }
+
+    function createBooleanControl(field, editor, state) {
+      const label = document.createElement("label");
+      label.className = "toggle";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      label.append(input, document.createTextNode(field.control_label ?? "Enabled"));
+      editor.append(label);
+      state.controls = [input];
+      state.read = () => input.checked;
+      state.write = value => { input.checked = Boolean(value); };
+    }
+
+    function createBitmaskControl(field, editor, state) {
+      const list = document.createElement("div");
+      list.className = "bit-list";
+      for (let bit = 0; bit < field.bits; bit++) {
+        const label = document.createElement("label");
+        label.className = "bit-toggle";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.dataset.bit = bit;
+        label.append(input, document.createTextNode(`Profile ${bit + 1}`));
+        list.append(label);
+        state.controls.push(input);
+      }
+      editor.append(list);
+      const mask = document.createElement("div");
+      mask.className = "mask-value";
+      editor.append(mask);
+      state.read = () => state.controls.reduce(
+        (value, input) => input.checked ? value | (1 << Number(input.dataset.bit)) : value,
+        0,
+      );
+      state.write = value => {
+        const bits = Number(value) || 0;
+        for (const input of state.controls) {
+          input.checked = Boolean(bits & (1 << Number(input.dataset.bit)));
+        }
+        mask.textContent = `Mask: ${bits}`;
+      };
+    }
+
+    function createPercentControl(field, editor, state) {
+      const line = document.createElement("div");
+      line.className = "range-row";
+      const input = document.createElement("input");
+      input.type = "range";
+      input.min = field.minimum ?? 0;
+      input.max = field.maximum ?? 100;
+      input.step = "1";
+      const output = document.createElement("output");
+      output.className = "range-value";
+      line.append(input, output);
+      editor.append(line);
+      state.controls = [input];
+      state.read = () => Number(input.value);
+      state.write = value => {
+        input.value = value ?? input.min;
+        output.textContent = `${input.value}%`;
+      };
+      input.addEventListener("input", () => {
+        output.textContent = `${input.value}%`;
+        saveCurrentValue(state);
+        queueRender();
+      });
+    }
+
+    function createTextControl(field, editor, state) {
+      const input = document.createElement("input");
+      input.type = field.type === "string" ? "text" : "number";
+      if (field.minimum !== undefined) input.min = field.minimum;
+      if (field.maximum !== undefined) input.max = field.maximum;
+      if (field.type === "integer") input.step = "1";
+      editor.append(input);
+      state.controls = [input];
+      state.read = () => field.type === "string" ? input.value : Number(input.value);
+      state.write = value => { input.value = value ?? ""; };
+    }
+
+    function createField(field) {
+      const row = document.createElement("section");
+      row.className = "field";
+      const heading = document.createElement("div");
+      heading.className = "field-heading";
+      const name = document.createElement("span");
+      name.className = "field-name";
+      name.textContent = field.id;
+      const kind = document.createElement("span");
+      kind.className = "field-kind";
+      kind.textContent = `${field.type} · ${field.renderers.join(", ")}`;
+      heading.append(name, kind);
+      let description;
+      if (field.role_descriptions) {
+        description = document.createElement("div");
+        description.className = "field-description";
+        description.textContent = field.role_descriptions[roleSelect.value] ?? "";
+      }
+      const editor = document.createElement("div");
+      if (description) row.append(heading, description, editor);
+      else row.append(heading, editor);
+
+      const state = {
+        field,
+        row,
+        editor,
+        description,
+        controls: [],
+        read: () => null,
+        write: () => {},
+      };
+      const builders = {
+        enum: createEnumControl,
+        boolean: createBooleanControl,
+        bitmask: createBitmaskControl,
+        percent: createPercentControl,
+        integer: createTextControl,
+        string: createTextControl,
+      };
+      builders[field.type](field, editor, state);
+
+      for (const input of state.controls) {
+        input.addEventListener("change", () => {
+          saveCurrentValue(state);
+          if (field.type === "bitmask") state.write(state.read());
+          queueRender();
+        });
+      }
+      fieldsRoot.append(row);
+      controlState.set(field.id, state);
+      return state;
+    }
+
+    function saveCurrentValue(state) {
+      config.values[roleSelect.value][state.field.id] = state.read();
+    }
+
+    function syncControls() {
+      const role = roleSelect.value;
+      for (const state of controlState.values()) {
+        const available = state.field.roles.includes(role);
+        state.row.classList.toggle("disabled", !available);
+        for (const input of state.controls) input.disabled = !available;
+        if (state.description) {
+          state.description.textContent = state.field.role_descriptions[role] ?? "";
+        }
+        state.write(config.values[role][state.field.id]);
+      }
+    }
+
+    function queueRender() {
+      clearTimeout(renderTimer);
+      status.textContent = "Rendering…";
+      renderTimer = setTimeout(renderPreview, 90);
+    }
+
+    async function renderPreview() {
+      requestController?.abort();
+      requestController = new AbortController();
+      try {
+        const response = await fetch("/render", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: roleSelect.value, values: config.values[roleSelect.value] }),
+          signal: requestController.signal,
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const nextUrl = URL.createObjectURL(await response.blob());
+        previewImage.src = nextUrl;
+        if (activeUrl) URL.revokeObjectURL(activeUrl);
+        activeUrl = nextUrl;
+        status.textContent = "Ready";
+      } catch (error) {
+        if (error.name !== "AbortError") status.textContent = error.message;
+      }
+    }
+
+    async function start() {
+      const response = await fetch("/config");
+      if (!response.ok) throw new Error(await response.text());
+      config = await response.json();
+      document.title = `${config.title} · Nice!view Live Preview`;
+      document.querySelector("#source").textContent = config.title;
+      roleSelect.value = config.initialRole;
+      for (const field of config.bindings) createField(field);
+      roleSelect.addEventListener("change", () => { syncControls(); queueRender(); });
+      syncControls();
+      renderPreview();
+    }
+
+    try {
+      await start();
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  </script>
+</body>
+</html>

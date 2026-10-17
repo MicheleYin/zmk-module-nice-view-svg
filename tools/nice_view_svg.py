@@ -550,6 +550,11 @@ def _pack_i2_pixels(pixels: list[int], width: int, height: int) -> bytes:
 
 
 def _pack_monochrome_png(data: bytes) -> bytes:
+    (width, height), pixels = _monochrome_pixels_from_png(data)
+    return _pack_monochrome_pixels(pixels, width, height)
+
+
+def _monochrome_pixels_from_png(data: bytes) -> tuple[tuple[int, int], list[int]]:
     image_module = _load_pillow_image(PILLOW_UV_ERROR)
     with image_module.open(BytesIO(data)) as source:
         rgba = source.convert("RGBA")
@@ -557,7 +562,17 @@ def _pack_monochrome_png(data: bytes) -> bytes:
         background.alpha_composite(rgba)
         grayscale = background.convert("L")
         pixels = [0 if value < 128 else 1 for value in grayscale.get_flattened_data()]
-        return _pack_monochrome_pixels(pixels, *grayscale.size)
+        return grayscale.size, pixels
+
+
+def _monochrome_preview_png(data: bytes) -> bytes:
+    image_module = _load_pillow_image(PILLOW_UV_ERROR)
+    size, pixels = _monochrome_pixels_from_png(data)
+    image = image_module.new("1", size)
+    image.putdata([255 if pixel else 0 for pixel in pixels])
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def _pack_i2_png(data: bytes, bounds: tuple[int, int, int, int]) -> bytes:

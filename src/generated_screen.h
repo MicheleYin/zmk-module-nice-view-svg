@@ -515,5 +515,5 @@ static const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "output.selected", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 4, 65, 0, 0, 0, 0, 0, 8, 0, "monospace", "start", "output-label", "", "", "", 0 },
     { "output.selected", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 11, 27, 59, 6, 6, 0, 0, 0, 0, 0, "", "start", "value", "", "", "usb", 0 },
     { "output.selected", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 12, 27, 59, 6, 6, 0, 0, 0, 0, 0, "", "start", "value", "", "", "ble", 0 },
-    { "split.connected", ZMK_NVP_SVG_RENDER_VISIBLE, 2, 13, 148, 59, 6, 6, 0, 0, 0, 0, 0, "", "start", "value", "", "", "true", 0 },
+    { "split.connected", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 13, 148, 59, 6, 6, 0, 0, 0, 0, 0, "", "start", "value", "", "", "true", 0 },
 };

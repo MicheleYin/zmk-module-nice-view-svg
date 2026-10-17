@@ -24,7 +24,7 @@
     <text x="26" y="11"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7"
+          font-size="10"
           font-weight="bold">BATTERY</text>
 
     <!-- Battery outline -->
@@ -101,7 +101,7 @@
     <text x="80" y="11"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7"
+          font-size="10"
           font-weight="bold">LAYER</text>
 
     <text x="80" y="39"
@@ -113,15 +113,6 @@
           data-nvp-bind="layer.index"
           data-nvp-render="text">0</text>
 
-    <path d="M65 43.5H95"
-          stroke="#000"
-          stroke-width="1"/>
-
-    <text x="80" y="49"
-          text-anchor="middle"
-          font-family="monospace"
-          font-size="5">ACTIVE</text>
-
   </g>
 
   <!-- ================= HOST ================= -->
@@ -131,7 +122,7 @@
     <text x="133" y="11"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7"
+          font-size="10"
           font-weight="bold">HOST</text>
 
     <!-- USB selected -->
@@ -150,7 +141,7 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="9"
+            font-size="12"
             font-weight="bold">USB</text>
 
     </g>
@@ -171,7 +162,7 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="9"
+            font-size="12"
             font-weight="bold">BLE</text>
 
     </g>
@@ -192,7 +183,7 @@
       <text x="133" y="30"
             text-anchor="middle"
             font-family="monospace"
-            font-size="9"
+            font-size="12"
             font-weight="bold">--</text>
 
     </g>
@@ -200,7 +191,7 @@
     <text x="133" y="46"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">SOFLE</text>
+          font-size="10">SOFLE</text>
 
   </g>
 
@@ -208,7 +199,7 @@
 
   <text x="5" y="63"
         font-family="monospace"
-        font-size="7"
+        font-size="10"
         font-weight="bold">BLE</text>
 
   <!-- ================= PROFILE 1 ================= -->
@@ -225,7 +216,7 @@
     <text x="38" y="63"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">1</text>
+          font-size="10">1</text>
 
     <!-- Active state -->
     <g data-nvp-slot="active"
@@ -243,13 +234,13 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="7">1</text>
+            font-size="10">1</text>
 
     </g>
 
     <!-- Connected indicator -->
     <circle cx="44" cy="57"
-            r="1.5"
+            r="4"
             fill="#fff"
             stroke="#000"
             data-nvp-slot="connected"
@@ -274,7 +265,7 @@
     <text x="57" y="63"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">2</text>
+          font-size="10">2</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -291,12 +282,12 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="7">2</text>
+            font-size="10">2</text>
 
     </g>
 
     <circle cx="63" cy="57"
-            r="1.5"
+            r="4"
             fill="#fff"
             stroke="#000"
             data-nvp-slot="connected"
@@ -321,7 +312,7 @@
     <text x="76" y="63"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">3</text>
+          font-size="10">3</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -338,12 +329,12 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="7">3</text>
+            font-size="10">3</text>
 
     </g>
 
     <circle cx="82" cy="57"
-            r="1.5"
+            r="4"
             fill="#fff"
             stroke="#000"
             data-nvp-slot="connected"
@@ -368,7 +359,7 @@
     <text x="95" y="63"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">4</text>
+          font-size="10">4</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -385,12 +376,12 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="7">4</text>
+            font-size="10">4</text>
 
     </g>
 
     <circle cx="101" cy="57"
-            r="1.5"
+            r="4"
             fill="#fff"
             stroke="#000"
             data-nvp-slot="connected"
@@ -415,7 +406,7 @@
     <text x="114" y="63"
           text-anchor="middle"
           font-family="monospace"
-          font-size="7">5</text>
+          font-size="10">5</text>
 
     <g data-nvp-slot="active"
        data-nvp-bind="ble.active_profile"
@@ -432,12 +423,12 @@
             text-anchor="middle"
             fill="#fff"
             font-family="monospace"
-            font-size="7">5</text>
+            font-size="10">5</text>
 
     </g>
 
     <circle cx="120" cy="57"
-            r="1.5"
+            r="4"
             fill="#fff"
             stroke="#000"
             data-nvp-slot="connected"
@@ -452,10 +443,6 @@
   <!-- ================= SPLIT CONNECTION ================= -->
 
   <g id="split-link" data-nvp-widget="split_link">
-
-    <text x="132" y="63"
-          font-family="monospace"
-          font-size="6">S</text>
 
     <circle cx="150" cy="60.5"
             r="3"

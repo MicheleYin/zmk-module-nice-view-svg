@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="128" height="32"
+     viewBox="0 0 128 32"
+     shape-rendering="crispEdges">
+  <title>Compact OLED 128x32 Status</title>
+  <rect width="128" height="32" fill="#fff"/>
+
+  <g id="left-battery" data-nvp-widget="battery">
+    <text x="2" y="10" font-family="monospace" font-size="12">L</text>
+    <rect x="12" y="3" width="28" height="7" fill="none" stroke="#000"/>
+    <rect x="14" y="4" width="24" height="4"
+          data-nvp-slot="level" data-nvp-bind="battery.left.percent"
+          data-nvp-render="bar"/>
+    <text x="44" y="10" font-family="monospace" font-size="12"
+          data-nvp-slot="level" data-nvp-bind="battery.left.percent"
+          data-nvp-render="percent">--%</text>
+  </g>
+
+  <g id="right-battery" data-nvp-widget="battery">
+    <text x="2" y="22" font-family="monospace" font-size="12">R</text>
+    <rect x="12" y="15" width="28" height="7" fill="none" stroke="#000"/>
+    <rect x="14" y="16" width="24" height="4"
+          data-nvp-slot="level" data-nvp-bind="battery.right.percent"
+          data-nvp-render="bar"/>
+    <text x="44" y="22" font-family="monospace" font-size="12"
+          data-nvp-slot="level" data-nvp-bind="battery.right.percent"
+          data-nvp-render="percent">--%</text>
+  </g>
+
+  <g id="connection" data-nvp-widget="connection">
+    <text x="76" y="10" font-family="monospace" font-size="12"
+          data-nvp-slot="selected" data-nvp-bind="output.selected"
+          data-nvp-render="text" data-nvp-format="output-label">--</text>
+  </g>
+
+  <g id="layer" data-nvp-widget="layer">
+    <text x="76" y="23" font-family="monospace" font-size="12">LAYER</text>
+    <text x="116" y="23" font-family="monospace" font-size="12"
+          data-nvp-slot="value" data-nvp-bind="layer.index"
+          data-nvp-render="text">0</text>
+  </g>
+
+  <g id="split" data-nvp-widget="split_indicator">
+    <text x="100" y="10" font-family="monospace" font-size="12"
+          data-nvp-slot="half" data-nvp-bind="display.half"
+          data-nvp-render="visible" data-nvp-when="left"
+          data-nvp-bounds="98,2,10,10">L</text>
+    <text x="100" y="10" font-family="monospace" font-size="12"
+          data-nvp-slot="half" data-nvp-bind="display.half"
+          data-nvp-render="visible" data-nvp-when="right"
+          data-nvp-bounds="98,2,10,10">R</text>
+  </g>
+</svg>

@@ -27,6 +27,7 @@
     }
     .brand { font-size: 14px; font-weight: 700; }
     .source { color: #c4d0ca; font-size: 12px; overflow-wrap: anywhere; }
+    .header-controls { display: flex; align-items: center; gap: 16px; }
     .role-control { display: flex; align-items: center; gap: 8px; font-size: 12px; }
     select, input { font: inherit; }
     select {
@@ -123,17 +124,25 @@
       <div class="brand">NICE!VIEW / LIVE SVG</div>
       <div class="source" id="source"></div>
     </div>
-    <label class="role-control">Display role
-      <select id="role">
-        <option value="central">Central</option>
-        <option value="peripheral">Peripheral</option>
-      </select>
-    </label>
+    <div class="header-controls">
+      <label class="role-control">Display role
+        <select id="role">
+          <option value="central">Central</option>
+          <option value="peripheral">Peripheral</option>
+        </select>
+      </label>
+      <label class="role-control">Polarity
+        <select id="inversion">
+          <option value="legacy">Legacy</option>
+          <option value="white-background">White background</option>
+        </select>
+      </label>
+    </div>
   </header>
   <main>
     <section class="stage" aria-label="Raster preview">
-      <div class="screen"><img id="preview" width="160" height="68" alt="Live rasterized Nice!view screen"></div>
-      <div class="screen-meta"><span>160 × 68 px · 1-bit monochrome</span><span id="status" aria-live="polite">Loading</span></div>
+      <div class="screen"><img id="preview" alt="Live rasterized Nice!view screen"></div>
+      <div class="screen-meta"><span id="dimensions"></span><span id="status" aria-live="polite">Loading</span></div>
     </section>
     <aside>
       <div class="controls-heading">Bound status fields</div>
@@ -142,6 +151,7 @@
   </main>
   <script type="module">
     const roleSelect = document.querySelector("#role");
+    const inversionSelect = document.querySelector("#inversion");
     const fieldsRoot = document.querySelector("#fields");
     const previewImage = document.querySelector("#preview");
     const status = document.querySelector("#status");
@@ -327,7 +337,11 @@
         const response = await fetch("/render", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role: roleSelect.value, values: config.values[roleSelect.value] }),
+          body: JSON.stringify({
+            role: roleSelect.value,
+            values: config.values[roleSelect.value],
+            inversionMode: inversionSelect.value,
+          }),
           signal: requestController.signal,
         });
         if (!response.ok) throw new Error(await response.text());
@@ -347,6 +361,21 @@
       config = await response.json();
       document.title = `${config.title} · Nice!view Live Preview`;
       document.querySelector("#source").textContent = config.title;
+      const screen = document.querySelector(".screen");
+      screen.style.aspectRatio = `${config.width} / ${config.height}`;
+      previewImage.width = config.width;
+      previewImage.height = config.height;
+      document.querySelector("#dimensions").textContent =
+        `${config.width} × ${config.height} px · 1-bit monochrome`;
+      inversionSelect.value = config.initialInversionMode;
+      const updateScreenPolarity = () => {
+        screen.style.background = inversionSelect.value === "legacy" && config.legacyInverted
+          ? "#000"
+          : "#fff";
+        queueRender();
+      };
+      inversionSelect.addEventListener("change", updateScreenPolarity);
+      screen.style.background = config.legacyInverted ? "#000" : "#fff";
       roleSelect.value = config.initialRole;
       for (const field of config.bindings) createField(field);
       roleSelect.addEventListener("change", () => { syncControls(); queueRender(); });

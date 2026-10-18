@@ -98,14 +98,32 @@ def _binding_roles(element: ET.Element) -> set[str]:
     return roles
 
 
-def _validate_view_box(root: ET.Element) -> list[str]:
+def _view_box_size(root: ET.Element) -> tuple[int, int] | None:
     try:
         view_box = [float(value) for value in root.get("viewBox", "").split()]
     except ValueError:
-        view_box = []
-    if len(view_box) == 4 and view_box[2:] == [SCREEN_WIDTH, SCREEN_HEIGHT]:
+        return None
+    if (
+        len(view_box) == 4
+        and view_box[:2] == [0, 0]
+        and all(value.is_integer() for value in view_box[2:])
+        and all(value > 0 for value in view_box[2:])
+    ):
+        return int(view_box[2]), int(view_box[3])
+    return None
+
+
+def _required_view_box_size(root: ET.Element, purpose: str) -> tuple[int, int]:
+    size = _view_box_size(root)
+    if size is None:
+        raise ValueError(f"{purpose} requires a valid SVG viewBox")
+    return size
+
+
+def _validate_view_box(root: ET.Element) -> list[str]:
+    if _view_box_size(root) is not None:
         return []
-    return ["viewBox must have width 160 and height 68"]
+    return ["viewBox must have a zero origin and positive integer width and height"]
 
 
 def _validate_renderer_type(
@@ -183,6 +201,7 @@ def _validate_ring_geometry(
     element: ET.Element,
     field_id: str,
     parents: dict[ET.Element, ET.Element],
+    screen_size: tuple[int, int],
 ) -> list[str]:
     values = {}
     for attribute in ("cx", "cy", "r", "stroke-width"):
@@ -206,9 +225,10 @@ def _validate_ring_geometry(
     if _has_transformed_ancestor(element, parents):
         return [f"ring {field_id} cannot have a transformed ancestor"]
     extent = radius + stroke_width / 2
+    screen_width, screen_height = screen_size
     if not (
-        extent <= values["cx"] <= SCREEN_WIDTH - extent
-        and extent <= values["cy"] <= SCREEN_HEIGHT - extent
+        extent <= values["cx"] <= screen_width - extent
+        and extent <= values["cy"] <= screen_height - extent
     ):
         return [f"ring {field_id} is outside the screen bounds"]
     return []
@@ -248,7 +268,10 @@ def _validate_visibility(
     return []
 
 
-def _visible_bounds(element: ET.Element) -> tuple[int, int, int, int] | None:
+def _visible_bounds(
+    element: ET.Element,
+    screen_size: tuple[int, int] = (SCREEN_WIDTH, SCREEN_HEIGHT),
+) -> tuple[int, int, int, int] | None:
     bounds_text = element.get("data-nvp-bounds", "")
     if not bounds_text and _local_name(element.tag) == "rect":
         bounds_text = " ".join(
@@ -273,7 +296,8 @@ def _visible_bounds(element: ET.Element) -> tuple[int, int, int, int] | None:
         return None
     if width <= 0 or height <= 0 or x < 0 or y < 0:
         return None
-    if x + width > SCREEN_WIDTH or y + height > SCREEN_HEIGHT:
+    screen_width, screen_height = screen_size
+    if x + width > screen_width or y + height > screen_height:
         return None
     left, top = math.floor(x), math.floor(y)
     right, bottom = math.ceil(x + width), math.ceil(y + height)
@@ -285,6 +309,7 @@ def _validate_binding(
     fields: dict[str, dict[str, Any]],
     roles: set[str],
     parents: dict[ET.Element, ET.Element],
+    screen_size: tuple[int, int],
 ) -> list[str]:
     field_id = element.get("data-nvp-bind")
     renderer = element.get("data-nvp-render")
@@ -323,10 +348,10 @@ def _validate_binding(
     if renderer == "bar":
         errors.extend(_validate_bar_geometry(element, field_id))
     if renderer == "ring":
-        errors.extend(_validate_ring_geometry(element, field_id, parents))
+        errors.extend(_validate_ring_geometry(element, field_id, parents, screen_size))
     if renderer == "visible":
         errors.extend(_validate_visibility(element, field, field_id))
-        if _visible_bounds(element) is None:
+        if _visible_bounds(element, screen_size) is None:
             errors.append(
                 f"visible renderer needs in-bounds data-nvp-bounds: {field_id}"
             )
@@ -481,6 +506,7 @@ def validate_svg_text(
         return ["root element must be <svg>"]
 
     errors = _validate_view_box(root)
+    screen_size = _view_box_size(root) or (SCREEN_WIDTH, SCREEN_HEIGHT)
     if widget_catalog is not None:
         errors.extend(_validate_widget_groups(root, widget_catalog))
     selected_roles = roles or set(ROLES)
@@ -497,7 +523,9 @@ def validate_svg_text(
             element.get("data-nvp-bind") is not None
             or element.get("data-nvp-render") is not None
         ):
-            errors.extend(_validate_binding(element, fields, selected_roles, parents))
+            errors.extend(
+                _validate_binding(element, fields, selected_roles, parents, screen_size)
+            )
     return errors
 
 
@@ -522,20 +550,19 @@ def _pack_monochrome_pixels(
     pixels: list[int],
     width: int,
     height: int,
-    expected_size: tuple[int, int] = (SCREEN_WIDTH, SCREEN_HEIGHT),
+    expected_size: tuple[int, int] | None = None,
 ) -> bytes:
-    if (width, height) != expected_size:
+    if expected_size is not None and (width, height) != expected_size:
         raise ValueError(f"raster has unexpected dimensions: {width}x{height}")
     if len(pixels) != width * height:
         raise ValueError("raster pixel data is malformed")
 
-    packed = bytearray()
-    for offset in range(0, len(pixels), 8):
-        value = 0
-        for bit, pixel in enumerate(pixels[offset : offset + 8]):
-            if pixel == 0:
-                value |= 1 << (7 - bit)
-        packed.append(value)
+    stride = (width + 7) // 8
+    packed = bytearray(stride * height)
+    for y in range(height):
+        for x in range(width):
+            if pixels[y * width + x] == 0:
+                packed[y * stride + x // 8] |= 1 << (7 - (x % 8))
     return bytes(packed)
 
 
@@ -565,11 +592,15 @@ def _monochrome_pixels_from_png(data: bytes) -> tuple[tuple[int, int], list[int]
         return grayscale.size, pixels
 
 
-def _monochrome_preview_png(data: bytes) -> bytes:
+def _monochrome_preview_png(data: bytes, inverted: bool = False) -> bytes:
     image_module = _load_pillow_image(PILLOW_UV_ERROR)
     size, pixels = _monochrome_pixels_from_png(data)
     image = image_module.new("1", size)
-    image.putdata([255 if pixel else 0 for pixel in pixels])
+    image.putdata(
+        [0 if pixel else 255 for pixel in pixels]
+        if inverted
+        else [255 if pixel else 0 for pixel in pixels]
+    )
     output = BytesIO()
     image.save(output, format="PNG")
     return output.getvalue()
@@ -629,11 +660,12 @@ def parents_for(
 
 def _compile_visible_assets(svg_text: str) -> dict[int, tuple[int, int, bytes]]:
     root = ET.fromstring(svg_text)
+    screen_size = _required_view_box_size(root, "visible assets")
     assets = {}
     for element_index, element in enumerate(root.iter()):
         if element.get("data-nvp-render") != "visible":
             continue
-        bounds = _visible_bounds(element)
+        bounds = _visible_bounds(element, screen_size)
         if bounds is None:
             raise ValueError(
                 f"visible renderer needs in-bounds data-nvp-bounds: "
@@ -789,13 +821,15 @@ def _append_visible_asset_index(lines: list[str], asset_count: int) -> None:
 
 
 def _binding_geometry(
-    element: ET.Element, renderer: str
+    element: ET.Element,
+    renderer: str,
+    screen_size: tuple[int, int] = (SCREEN_WIDTH, SCREEN_HEIGHT),
 ) -> tuple[tuple[int, int, int, int] | None, int, int, int]:
     ring_radius = 0
     ring_width = 0
     ring_rounded = 0
     if renderer == "visible":
-        geometry = _visible_bounds(element)
+        geometry = _visible_bounds(element, screen_size)
     elif renderer == "ring":
         geometry = (
             round(float(element.get("cx", "0"))),
@@ -822,6 +856,11 @@ def _generate_header(
     visible_assets: dict[int, tuple[int, int, bytes]] | None = None,
 ) -> str:
     root = ET.fromstring(svg_text)
+    screen_size = _required_view_box_size(root, "header generation")
+    screen_width, screen_height = screen_size
+    stride = (screen_width + 7) // 8
+    if len(bitmap) != stride * screen_height:
+        raise ValueError("packed bitmap size does not match the SVG viewBox")
     renderers = {name: index for index, name in enumerate(sorted(RENDERERS))}
     role_bits = {"central": 1, "peripheral": 2}
     indexed_elements = [
@@ -845,8 +884,8 @@ def _generate_header(
         "#define LV_ATTRIBUTE_LARGE_CONST",
         PREPROCESSOR_ENDIF,
         "",
-        f"#define ZMK_NVP_SVG_WIDTH {SCREEN_WIDTH}",
-        f"#define ZMK_NVP_SVG_HEIGHT {SCREEN_HEIGHT}",
+        f"#define ZMK_NVP_SVG_WIDTH {screen_width}",
+        f"#define ZMK_NVP_SVG_HEIGHT {screen_height}",
         f"#define ZMK_NVP_SVG_BITMAP_SIZE {len(bitmap)}",
         f"#define ZMK_NVP_SVG_BINDING_COUNT {len(indexed_elements)}",
         f"#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT {len(visible_assets)}",
@@ -881,7 +920,7 @@ def _generate_header(
             "",
             "static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t",
             "    zmk_nvp_svg_background_data[] = {",
-            "#if CONFIG_NICE_VIEW_WIDGET_INVERTED",
+            "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
             "    0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,",
             "#else",
             "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff,",
@@ -902,9 +941,9 @@ def _generate_header(
             "    .header = {",
             "        .magic = LV_IMAGE_HEADER_MAGIC,",
             "        .cf = LV_COLOR_FORMAT_I1,",
-            f"        .w = {SCREEN_WIDTH},",
-            f"        .h = {SCREEN_HEIGHT},",
-            f"        .stride = {SCREEN_WIDTH // 8},",
+            f"        .w = {screen_width},",
+            f"        .h = {screen_height},",
+            f"        .stride = {stride},",
             "    },",
             "    .data_size = sizeof(zmk_nvp_svg_background_data),",
             "    .data = zmk_nvp_svg_background_data,",
@@ -918,7 +957,7 @@ def _generate_header(
         lines.extend(
             [
                 f"static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t zmk_nvp_svg_visible_{asset_index}_data[] = {{",
-                "#if CONFIG_NICE_VIEW_WIDGET_INVERTED",
+                "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
                 "    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,",
                 "    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,",
                 "#else",
@@ -959,7 +998,7 @@ def _generate_header(
         renderer = element.attrib["data-nvp-render"]
         roles = sum(role_bits[role] for role in _binding_roles(element))
         geometry, ring_radius, ring_width, ring_rounded = _binding_geometry(
-            element, renderer
+            element, renderer, screen_size
         )
         if geometry is None:
             raise ValueError(f"visible element has invalid bounds: {field_id}")
@@ -1027,6 +1066,7 @@ def preview(
     role: str,
     output_path: Path,
     rotate_180: bool = False,
+    inverted: bool = False,
 ) -> None:
     svg_text = svg_path.read_text()
     fields = load_catalog(catalog_path)
@@ -1035,7 +1075,7 @@ def preview(
     values = values_document.get("values", values_document)
     rendered_svg = preview_svg_text(svg_text, fields, values, role, widget_catalog)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    png = _rasterize_png(rendered_svg)
+    png = _monochrome_preview_png(_rasterize_png(rendered_svg), inverted)
     output_path.write_bytes(_rotate_png_180(png) if rotate_180 else png)
 
 
@@ -1051,6 +1091,8 @@ def _rasterize_png(svg_text: str, rasterizer: str | None = None) -> bytes:
     rasterizer = rasterizer or shutil.which("rsvg-convert")
     if not rasterizer:
         raise RuntimeError("preview/generation requires rsvg-convert")
+    screen_size = _required_view_box_size(ET.fromstring(svg_text), "rasterization")
+    screen_width, screen_height = screen_size
     with tempfile.TemporaryDirectory() as temporary_directory:
         svg_path = Path(temporary_directory) / "screen.svg"
         svg_path.write_text(svg_text)
@@ -1058,9 +1100,9 @@ def _rasterize_png(svg_text: str, rasterizer: str | None = None) -> bytes:
             [
                 rasterizer,
                 "-w",
-                str(SCREEN_WIDTH),
+                str(screen_width),
                 "-h",
-                str(SCREEN_HEIGHT),
+                str(screen_height),
                 str(svg_path),
             ],
             check=True,
@@ -1097,6 +1139,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     preview_parser.add_argument("--output", type=Path, required=True)
     preview_parser.add_argument("--rotate-180", action="store_true")
+    preview_parser.add_argument("--invert", action="store_true")
 
     arguments = parser.parse_args(argv)
     try:
@@ -1118,6 +1161,7 @@ def main(argv: list[str] | None = None) -> int:
                 arguments.role,
                 arguments.output,
                 arguments.rotate_180,
+                arguments.invert,
             )
             print(f"Rendered {arguments.output}")
     except (

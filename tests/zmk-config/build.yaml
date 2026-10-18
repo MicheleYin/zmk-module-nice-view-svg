@@ -1,4 +1,4 @@
 include:
-  - artifact: nice_view_plus_tester_xiao
+  - artifact: zmk_svg_tester_xiao
     board: xiao_ble//zmk
     shield: tester_xiao

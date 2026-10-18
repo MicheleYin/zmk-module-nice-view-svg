@@ -2,18 +2,6 @@
 
 This repository contains a ZMK module.
 
-## Initialization (first time only)
-
-This repo is created from template. Below template code should be changed when initially starting implementation from template.
-
-- README.md
-  - Remove Summary, "Usage" and "More Info" which is for template users. Replace to proper module description.
-  - Update "Module User Guide" properly
-  - Update CI status badge to link to your repo instead of template repo
-- zephyr/module.yml: Change module name properly.
-- rename artifact defined in tests/zmk-config/build.yaml properly
-- remove this "Initialization" section from AGENT.md (CLAUDE.md is symlink) after confirming all items accomplished.
-
 ## Dev Rules
 
 - Commit changes at each milestone. Ensure pre-commit works and never bypass pre-commit check.
@@ -30,9 +18,9 @@ This repo is created from template. Below template code should be changed when i
 This module is integrated into the Sofle firmware through sibling repositories in the user's workspace:
 
 - `zmk-sofle` owns the Sofle shield, keymap, and firmware build configuration.
-- `zmk-sofle/config/west.yml` pins the firmware dependency to `https://github.com/MicheleYin/zmk.git` at `feature/nice-view` and this module to `https://github.com/MicheleYin/zmk-module-nice-view-svg` at `feature/nice-view`.
+- `zmk-sofle/config/west.yml` pins the firmware dependency to `https://github.com/MicheleYin/zmk.git` at `feature/nice-view` and this module to `https://github.com/MicheleYin/zmk-module-svg` at `feature/nice-view`.
 - The ZMK dependency is a custom fork, not upstream `zmkfirmware/zmk`. Check the sibling `zmk` repository when relying on ZMK APIs, configuration, or driver behavior. Do not switch to upstream or assume upstream `main` contains these custom changes.
-- The Zephyr module name used by firmware is `zmk-nice-view-plus`.
+- The Zephyr module name used by firmware is `zmk-svg`.
 
 Use the Sofle manifest for end-to-end firmware integration. From `zmk-sofle`, set up the workspace with `west init -l config`, `west update`, and `west zephyr-export`; use its `build.yaml` as the source of truth for build targets and options.
 

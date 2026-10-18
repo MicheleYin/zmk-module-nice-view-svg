@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/display.h>
+#include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
 #include <zmk/split/bluetooth/status.h>
@@ -21,14 +25,40 @@
 
 #include <lvgl.h>
 
-#if IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT)
-#include "generated_day_screen.h"
-#elif IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT)
-#include "generated_night_screen.h"
-#else
-#include "generated_screen.h"
+#if IS_ENABLED(CONFIG_ZMK_SVG_THEME_LEFT)
+#if DT_PROP(DT_CHOSEN(zephyr_display), width) != 160 ||                                            \
+    DT_PROP(DT_CHOSEN(zephyr_display), height) != 68
+#error "The left Nice!View SVG theme requires a 160x68 display"
 #endif
+#include "generated_day_screen.h"
+#elif IS_ENABLED(CONFIG_ZMK_SVG_THEME_RIGHT)
+#if DT_PROP(DT_CHOSEN(zephyr_display), width) != 160 ||                                            \
+    DT_PROP(DT_CHOSEN(zephyr_display), height) != 68
+#error "The right Nice!View SVG theme requires a 160x68 display"
+#endif
+#include "generated_night_screen.h"
+#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&                                          \
+    DT_PROP(DT_CHOSEN(zephyr_display), height) == 32
+#if IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF)
+#include "generated_oled_mirror_screen.h"
+#else
+#include "generated_oled_screen.h"
+#endif
+#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 160 &&                                          \
+    DT_PROP(DT_CHOSEN(zephyr_display), height) == 68
+#include "generated_screen.h"
+#else
+#error "Automatic SVG theme supports 160x68 and 128x32 displays; author a matching source SVG"
+#endif
+
+BUILD_ASSERT(ZMK_NVP_SVG_WIDTH == DT_PROP(DT_CHOSEN(zephyr_display), width),
+             "Generated SVG width must match the selected display");
+BUILD_ASSERT(ZMK_NVP_SVG_HEIGHT == DT_PROP(DT_CHOSEN(zephyr_display), height),
+             "Generated SVG height must match the selected display");
+
 #include "svg_screen.h"
+
+LOG_MODULE_REGISTER(zmk_svg_screen, CONFIG_ZMK_LOG_LEVEL);
 
 struct field_value {
     bool valid;
@@ -41,11 +71,15 @@ static lv_obj_t *screen;
 static lv_obj_t *binding_objects[ZMK_NVP_SVG_BINDING_COUNT];
 
 static lv_color_t foreground_color(void) {
-    return IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) ? lv_color_white() : lv_color_black();
+    bool inverted = IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) &&
+                    !IS_ENABLED(CONFIG_ZMK_SVG_WHITE_BACKGROUND);
+    return inverted ? lv_color_white() : lv_color_black();
 }
 
 static lv_color_t background_color(void) {
-    return IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) ? lv_color_black() : lv_color_white();
+    bool inverted = IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) &&
+                    !IS_ENABLED(CONFIG_ZMK_SVG_WHITE_BACKGROUND);
+    return inverted ? lv_color_black() : lv_color_white();
 }
 
 static uint8_t display_role(void) {
@@ -90,7 +124,7 @@ static struct field_value read_field(const char *field_id,
     if (strcmp(field_id, "battery.left.percent") == 0 ||
         strcmp(field_id, "battery.right.percent") == 0) {
         bool battery_is_right = strcmp(field_id, "battery.right.percent") == 0;
-        bool central_is_right = IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_CENTRAL_RIGHT_HALF);
+        bool central_is_right = IS_ENABLED(CONFIG_ZMK_SVG_CENTRAL_RIGHT_HALF);
         return read_field(battery_is_right == central_is_right ? "battery.central.percent"
                                                                : "battery.peripheral.percent",
                           state);
@@ -98,7 +132,7 @@ static struct field_value read_field(const char *field_id,
     if (strcmp(field_id, "battery.left.charge") == 0 ||
         strcmp(field_id, "battery.right.charge") == 0) {
         bool battery_is_right = strcmp(field_id, "battery.right.charge") == 0;
-        bool central_is_right = IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_CENTRAL_RIGHT_HALF);
+        bool central_is_right = IS_ENABLED(CONFIG_ZMK_SVG_CENTRAL_RIGHT_HALF);
         return read_field(battery_is_right == central_is_right ? "battery.central.charge"
                                                                : "battery.peripheral.charge",
                           state);
@@ -201,7 +235,7 @@ static struct field_value read_field(const char *field_id,
 #endif
     }
     if (strcmp(field_id, "display.half") == 0) {
-        return string_value(IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF) ? "right" : "left");
+        return string_value(IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF) ? "right" : "left");
     }
     if (strcmp(field_id, "split.connected") == 0) {
         return string_value(state->split_connected ? "true" : "false");
@@ -323,6 +357,21 @@ static lv_obj_t *create_binding_object(const struct zmk_nvp_svg_binding *binding
 }
 
 lv_obj_t *zmk_nvp_svg_screen_create(void) {
+    const struct device *display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+    struct display_capabilities capabilities;
+    if (!device_is_ready(display_device)) {
+        LOG_ERR("Display device is not ready");
+        return NULL;
+    }
+    display_get_capabilities(display_device, &capabilities);
+    if (capabilities.x_resolution != ZMK_NVP_SVG_WIDTH ||
+        capabilities.y_resolution != ZMK_NVP_SVG_HEIGHT) {
+        LOG_ERR("Generated SVG is %ux%u, display is %ux%u; regenerate a matching header",
+                (unsigned int)ZMK_NVP_SVG_WIDTH, (unsigned int)ZMK_NVP_SVG_HEIGHT,
+                (unsigned int)capabilities.x_resolution, (unsigned int)capabilities.y_resolution);
+        return NULL;
+    }
+
     screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen, background_color(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);

@@ -123,6 +123,20 @@ For Nice!View shields only, also disable the built-in Nice!View status screen:
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
+### Nice!View color polarity
+
+Nice!View uses black for a set pixel and white for a clear pixel. ZMK SVG defaults to black artwork on a white background; leave `CONFIG_NICE_VIEW_WIDGET_INVERTED` unset for this usual appearance. You can reverse black and white by enabling the Nice!View option in each half's configuration:
+
+```conf
+CONFIG_NICE_VIEW_WIDGET_INVERTED=y
+```
+
+Inverted white-on-black LVGL text can appear thinner. If that is undesirable, leave the inversion option unset. If it must be enabled for another part of the display but ZMK SVG should stay black-on-white, set this module option in each half's configuration:
+
+```conf
+CONFIG_ZMK_SVG_WHITE_BACKGROUND=y
+```
+
 To highlight the right side in the split indicator, set this only in the right half's configuration:
 
 ```conf

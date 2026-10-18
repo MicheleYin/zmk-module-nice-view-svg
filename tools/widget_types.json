@@ -21,7 +21,7 @@
       "slots": {
         "value": {
           "fields": ["layer.index", "layer.name"],
-          "renderers": ["text"],
+          "renderers": ["text", "visible"],
           "required": true
         }
       }

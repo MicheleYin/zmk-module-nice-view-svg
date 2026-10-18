@@ -54,8 +54,8 @@ The designs in [docs/examples](docs/examples/) and themes in [docs/screens](docs
 | [wpm.svg](docs/examples/wpm.svg) | <img src="docs/examples/wpm.svg" alt="WPM readout example" width="160"> | Large WPM value in a clean monochrome panel. |
 | [wpm-tile.svg](docs/examples/wpm-tile.svg) | <img src="docs/examples/wpm-tile.svg" alt="High-contrast WPM tile example" width="160"> | High-contrast WPM tile with a compact pace label. |
 | [watch.svg](docs/examples/watch.svg) | <img src="docs/examples/watch.svg" alt="Watch face example" width="160"> | Watch-face layout with battery bars, a circular layer complication, and host status. |
-| [shan.svg](docs/screens/shan.svg) | <img src="docs/screens/shan.svg" alt="Mountain status screen" width="160"> | Mountain theme with battery, layer, host, profile, and split status. |
-| [shui](docs/screens/shui.svg) | <img src="docs/screens/shui.svg" alt="Water status screen" width="160"> | Water theme with battery, layer, host, profile, and split status. It is mirrored on purpose so that when paired with Shan it looks like a canvas|
+| [shan.svg](docs/examples/shan.svg) | <img src="docs/examples/shan.svg" alt="Mountain status screen" width="160"> | Mountain theme with battery, layer, host, profile, and split status. |
+| [shui](docs/examples/shui.svg) | <img src="docs/examples/shui.svg" alt="Water status screen" width="160"> | Water theme with battery, layer, host, profile, and split status. It is mirrored on purpose so that when paired with Shan it looks like a canvas|
 | [rounded.svg](docs/examples/rounded.svg) | <img src="docs/examples/rounded.svg" alt="Rounded interface example" width="160"> | Rounded battery panels, a pill-shaped layer display, and BLE profile selector. |
 
 ### Different themes on each half

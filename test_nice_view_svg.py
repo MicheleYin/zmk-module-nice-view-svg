@@ -445,6 +445,36 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         self.assertIn("LV_COLOR_FORMAT_I2", header)
         self.assertIn("zmk_nvp_svg_visible_assets[]", header)
 
+    def test_visible_bounds_follow_ancestor_y_flip(self):
+        svg = make_svg(
+            '<g transform="translate(0,68) scale(1,-1)">'
+            '<rect x="4" y="5" width="4" height="4" fill="#000" '
+            'data-nvp-slot="value" data-nvp-bind="layer.index" '
+            'data-nvp-render="visible" data-nvp-when="2" '
+            'data-nvp-bounds="4,5,4,4"/></g>'
+        )
+        assets = _compile_visible_assets(svg)
+        self.assertEqual(assets[2], (4, 4, bytes([0x55] * 4)))
+
+        header = _generate_header(svg, bytes(1360), assets)
+        self.assertRegex(
+            header,
+            r'"layer.index", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 0, 4, 59, 4, 4,',
+        )
+
+    def test_bar_geometry_follows_ancestor_y_flip(self):
+        svg = make_svg(
+            '<g transform="translate(0,68) scale(1,-1)">'
+            '<rect x="7" y="8" width="19" height="4" fill="#000" '
+            'data-nvp-bind="battery.right.percent" data-nvp-render="bar"/>'
+            '</g>'
+        )
+        header = _generate_header(svg, bytes(1360))
+        self.assertRegex(
+            header,
+            r'"battery.right.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 7, 56, 19, 4,',
+        )
+
     def test_i2_pixels_pack_four_indices_msb_first(self):
         self.assertEqual(_pack_i2_pixels([0, 1, 2, 3], 4, 1), bytes([0x1B]))
 

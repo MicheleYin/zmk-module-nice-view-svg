@@ -72,7 +72,9 @@ For example, an endpoint widget can use different icon shapes for USB and BLE:
 </g>
 ```
 
-Edit the SVG paths inside a state group to change its icon. The generator rasterizes each conditional element/group into a transparent I2 image; firmware creates a bounded LVGL image object and hides or shows it as the field changes. Rectangles and circles get crop bounds from their geometry. For paths, text, or groups, provide `data-nvp-bounds="x,y,width,height"` in screen coordinates so the generator can crop the asset without capturing neighboring art. Keep dynamic groups small. Nested bindings are unsupported.
+Edit the SVG paths or text inside a state group to change its appearance. The generator rasterizes each conditional element/group into a transparent I2 image; firmware creates a bounded LVGL image object and hides or shows it as the field changes. Rectangles and circles get crop bounds from their geometry. For paths, text, or groups, provide `data-nvp-bounds="x,y,width,height"` in the element's parent coordinate system; the generator applies inherited SVG transforms before cropping and positioning the asset. Keep dynamic groups small. Nested bindings are unsupported.
+
+Conditional text is useful for finite values that should be part of flipped artwork, such as layer numbers or endpoint labels. Add one `visible` text binding per supported value with matching `data-nvp-when` and explicit bounds. The day and night themes include layers 0–4 to match the Sofle keymap; update those variants if the keymap's layer set changes.
 
 To add a widget kind, add its slots to `tools/widget_types.json`. A slot declares compatible field IDs, renderers, and whether at least one bound part is required. The validator checks these declarations against the screen SVG and status field catalog.
 

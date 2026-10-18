@@ -271,6 +271,7 @@ def _validate_visibility(
 def _visible_bounds(
     element: ET.Element,
     screen_size: tuple[int, int] = (SCREEN_WIDTH, SCREEN_HEIGHT),
+    parents: dict[ET.Element, ET.Element] | None = None,
 ) -> tuple[int, int, int, int] | None:
     bounds_text = element.get("data-nvp-bounds", "")
     if not bounds_text and _local_name(element.tag) == "rect":
@@ -296,12 +297,93 @@ def _visible_bounds(
         return None
     if width <= 0 or height <= 0 or x < 0 or y < 0:
         return None
+    if parents:
+        transform = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        for ancestor in reversed(parents_for(element, parents)):
+            matrix = _svg_transform_matrix(ancestor.get("transform", ""))
+            if matrix is None:
+                return None
+            transform = _multiply_affine(transform, matrix)
+        a, b, c, d, e, f = transform
+        corners = (
+            (x, y),
+            (x + width, y),
+            (x, y + height),
+            (x + width, y + height),
+        )
+        transformed = [(a * px + c * py + e, b * px + d * py + f) for px, py in corners]
+        x_values, y_values = zip(*transformed)
+        x = min(x_values)
+        y = min(y_values)
+        width = max(x_values) - x
+        height = max(y_values) - y
     screen_width, screen_height = screen_size
     if x + width > screen_width or y + height > screen_height:
         return None
     left, top = math.floor(x), math.floor(y)
     right, bottom = math.ceil(x + width), math.ceil(y + height)
     return left, top, right - left, bottom - top
+
+
+def _multiply_affine(
+    left: tuple[float, float, float, float, float, float],
+    right: tuple[float, float, float, float, float, float],
+) -> tuple[float, float, float, float, float, float]:
+    a, b, c, d, e, f = left
+    ra, rb, rc, rd, re_, rf = right
+    return (
+        a * ra + c * rb,
+        b * ra + d * rb,
+        a * rc + c * rd,
+        b * rc + d * rd,
+        a * re_ + c * rf + e,
+        b * re_ + d * rf + f,
+    )
+
+
+def _svg_transform_matrix(
+    transform: str,
+) -> tuple[float, float, float, float, float, float] | None:
+    matrix = (1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+    matches = list(re.finditer(r"([A-Za-z]+)\s*\(([^)]*)\)", transform))
+    if not transform.strip():
+        return matrix
+    if not matches or re.sub(r"([A-Za-z]+)\s*\([^)]*\)", "", transform).strip(" ,"):
+        return None
+
+    for match in matches:
+        try:
+            values = [float(value) for value in re.findall(r"[-+\d.eE]+", match[2])]
+        except ValueError:
+            return None
+        name = match[1]
+        if name == "matrix" and len(values) == 6:
+            part = tuple(values)
+        elif name == "translate" and len(values) in {1, 2}:
+            part = (1.0, 0.0, 0.0, 1.0, values[0], values[1] if len(values) == 2 else 0.0)
+        elif name == "scale" and len(values) in {1, 2}:
+            part = (values[0], 0.0, 0.0, values[1] if len(values) == 2 else values[0], 0.0, 0.0)
+        elif name == "rotate" and len(values) in {1, 3}:
+            angle = math.radians(values[0])
+            cosine, sine = math.cos(angle), math.sin(angle)
+            part = (cosine, sine, -sine, cosine, 0.0, 0.0)
+            if len(values) == 3:
+                cx, cy = values[1:]
+                part = _multiply_affine(
+                    _multiply_affine((1.0, 0.0, 0.0, 1.0, cx, cy), part),
+                    (1.0, 0.0, 0.0, 1.0, -cx, -cy),
+                )
+        elif name in {"skewX", "skewY"} and len(values) == 1:
+            tangent = math.tan(math.radians(values[0]))
+            part = (
+                (1.0, 0.0, tangent, 1.0, 0.0, 0.0)
+                if name == "skewX"
+                else (1.0, tangent, 0.0, 1.0, 0.0, 0.0)
+            )
+        else:
+            return None
+        matrix = _multiply_affine(matrix, part)
+    return matrix
 
 
 def _validate_binding(
@@ -351,7 +433,7 @@ def _validate_binding(
         errors.extend(_validate_ring_geometry(element, field_id, parents, screen_size))
     if renderer == "visible":
         errors.extend(_validate_visibility(element, field, field_id))
-        if _visible_bounds(element, screen_size) is None:
+        if _visible_bounds(element, screen_size, parents) is None:
             errors.append(
                 f"visible renderer needs in-bounds data-nvp-bounds: {field_id}"
             )
@@ -661,11 +743,12 @@ def parents_for(
 def _compile_visible_assets(svg_text: str) -> dict[int, tuple[int, int, bytes]]:
     root = ET.fromstring(svg_text)
     screen_size = _required_view_box_size(root, "visible assets")
+    parents = {child: parent for parent in root.iter() for child in parent}
     assets = {}
     for element_index, element in enumerate(root.iter()):
         if element.get("data-nvp-render") != "visible":
             continue
-        bounds = _visible_bounds(element, screen_size)
+        bounds = _visible_bounds(element, screen_size, parents)
         if bounds is None:
             raise ValueError(
                 f"visible renderer needs in-bounds data-nvp-bounds: "
@@ -824,12 +907,15 @@ def _binding_geometry(
     element: ET.Element,
     renderer: str,
     screen_size: tuple[int, int] = (SCREEN_WIDTH, SCREEN_HEIGHT),
+    parents: dict[ET.Element, ET.Element] | None = None,
 ) -> tuple[tuple[int, int, int, int] | None, int, int, int]:
     ring_radius = 0
     ring_width = 0
     ring_rounded = 0
     if renderer == "visible":
-        geometry = _visible_bounds(element, screen_size)
+        geometry = _visible_bounds(element, screen_size, parents)
+    elif renderer == "bar":
+        geometry = _visible_bounds(element, screen_size, parents)
     elif renderer == "ring":
         geometry = (
             round(float(element.get("cx", "0"))),
@@ -857,6 +943,7 @@ def _generate_header(
 ) -> str:
     root = ET.fromstring(svg_text)
     screen_size = _required_view_box_size(root, "header generation")
+    parents = {child: parent for parent in root.iter() for child in parent}
     screen_width, screen_height = screen_size
     stride = (screen_width + 7) // 8
     if len(bitmap) != stride * screen_height:
@@ -998,7 +1085,7 @@ def _generate_header(
         renderer = element.attrib["data-nvp-render"]
         roles = sum(role_bits[role] for role in _binding_roles(element))
         geometry, ring_radius, ring_width, ring_rounded = _binding_geometry(
-            element, renderer, screen_size
+            element, renderer, screen_size, parents
         )
         if geometry is None:
             raise ValueError(f"visible element has invalid bounds: {field_id}")

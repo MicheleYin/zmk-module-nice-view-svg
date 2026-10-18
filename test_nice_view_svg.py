@@ -47,13 +47,32 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_screen_theme_sources_validate_against_widget_catalog(self):
-        for theme in ("default", "day", "night"):
+        header_names = {
+            "default": "generated_screen.h",
+            "day": "generated_day_screen.h",
+            "night": "generated_night_screen.h",
+            "oled-128x32": "generated_oled_screen.h",
+            "oled-128x32-mirror": "generated_oled_mirror_screen.h",
+        }
+        for theme in (
+            "default",
+            "day",
+            "night",
+            "oled-128x32",
+            "oled-128x32-mirror",
+        ):
             with self.subTest(theme=theme):
                 svg_path = ROOT / "docs" / "screens" / f"{theme}.svg"
                 errors = validate_svg_text(
                     svg_path.read_text(), FIELDS, widget_catalog=WIDGETS
                 )
                 self.assertEqual(errors, [])
+                header = (ROOT / "src" / header_names[theme]).read_text()
+                width, height = (
+                    (128, 32) if theme.startswith("oled-128x32") else (160, 68)
+                )
+                self.assertIn(f"#define ZMK_NVP_SVG_WIDTH {width}", header)
+                self.assertIn(f"#define ZMK_NVP_SVG_HEIGHT {height}", header)
 
     def test_day_and_night_ble_assets_contain_visible_pixels(self):
         for theme in ("day", "night"):
@@ -120,6 +139,16 @@ class NiceViewSvgValidationTests(unittest.TestCase):
                 self.assertIn(binding["id"], config["values"]["central"])
                 self.assertIn(binding["id"], config["values"]["peripheral"])
         self.assertEqual(renderer_types, {"bar", "percent", "ring", "text", "visible"})
+
+    def test_live_preview_config_exposes_canvas_and_inversion(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            svg_path = Path(temporary_directory) / "custom.svg"
+            svg_path.write_text(make_svg("", "0 0 128 32"))
+            config = build_preview_config(svg_path, legacy_inverted=True)
+
+        self.assertEqual((config["width"], config["height"]), (128, 32))
+        self.assertTrue(config["legacyInverted"])
+        self.assertEqual(config["initialInversionMode"], "legacy")
 
     def test_split_connected_is_available_on_both_roles(self):
         field = FIELDS["split.connected"]
@@ -360,9 +389,19 @@ class NiceViewSvgValidationTests(unittest.TestCase):
             header,
         )
 
-    def test_wrong_viewbox_is_rejected(self):
+    def test_custom_viewbox_is_accepted(self):
         errors = validate_svg_text(make_svg("", "0 0 320 240"), FIELDS)
-        self.assertIn("viewBox must have width 160 and height 68", errors)
+        self.assertEqual(errors, [])
+
+    def test_viewbox_supports_standard_oled_resolution(self):
+        errors = validate_svg_text(make_svg("", "0 0 128 32"), FIELDS)
+        self.assertEqual(errors, [])
+
+    def test_viewbox_requires_zero_origin_and_integer_dimensions(self):
+        for view_box in ("1 0 128 32", "0 0 128.5 32", "0 0 0 32"):
+            with self.subTest(view_box=view_box):
+                errors = validate_svg_text(make_svg("", view_box), FIELDS)
+                self.assertTrue(errors)
 
     def test_dynamic_binding_budget_is_enforced(self):
         body = "".join(
@@ -577,6 +616,13 @@ class NiceViewSvgValidationTests(unittest.TestCase):
             _pack_monochrome_pixels(pixels, 8, 1, (8, 1)), bytes([0b10010110])
         )
 
+    def test_monochrome_packing_pads_each_non_aligned_row(self):
+        pixels = [0, 1, 0, 1, 0, 1, 0, 1, 1, 0]
+        self.assertEqual(
+            _pack_monochrome_pixels(pixels, 5, 2),
+            bytes([0b10101000, 0b01001000]),
+        )
+
     def test_monochrome_preview_png_uses_firmware_threshold(self):
         image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
         source = image_module.new("L", (3, 1))
@@ -588,6 +634,44 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         with image_module.open(BytesIO(monochrome)) as result:
             self.assertEqual(result.mode, "1")
             self.assertEqual(result.get_flattened_data(), (0, 255, 255))
+
+    def test_monochrome_preview_png_can_invert_firmware_pixels(self):
+        image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
+        source = image_module.new("RGBA", (2, 1), (0, 0, 0, 0))
+        source.putpixel((1, 0), (0, 0, 0, 255))
+        png = BytesIO()
+        source.save(png, format="PNG")
+
+        inverted = _monochrome_preview_png(png.getvalue(), True)
+        with image_module.open(BytesIO(inverted)) as result:
+            self.assertEqual(result.get_flattened_data(), (0, 255))
+
+    def test_generated_header_uses_custom_canvas_dimensions_and_stride(self):
+        header = _generate_header(make_svg("", "0 0 128 32"), bytes(512))
+
+        self.assertIn("#define ZMK_NVP_SVG_WIDTH 128", header)
+        self.assertIn("#define ZMK_NVP_SVG_HEIGHT 32", header)
+        self.assertIn("#define ZMK_NVP_SVG_BITMAP_SIZE 512", header)
+        self.assertIn(".stride = 16,", header)
+        self.assertIn(
+            "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
+            header,
+        )
+
+    def test_visible_header_geometry_uses_custom_canvas_bounds(self):
+        svg = make_svg(
+            '<g id="connection" data-nvp-widget="connection">'
+            '<g data-nvp-slot="selected" data-nvp-bind="output.selected" '
+            'data-nvp-render="visible" data-nvp-when="usb" '
+            'data-nvp-bounds="180,1,15,10"><rect/></g></g>',
+            "0 0 200 40",
+        )
+        errors = validate_svg_text(svg, FIELDS, widget_catalog=WIDGETS)
+        self.assertEqual(errors, [])
+        header = _generate_header(
+            svg, bytes(1000), visible_assets={2: (15, 10, bytes(60))}
+        )
+        self.assertIn("180, 1, 15, 10", header)
 
     def test_preview_rotation_flips_both_axes(self):
         image_module = _load_pillow_image("tests require uv and tools/requirements.txt")

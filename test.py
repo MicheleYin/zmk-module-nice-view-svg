@@ -55,7 +55,7 @@ class WestCommandsTests(unittest.TestCase):
     def test_zmk_build(self):
         self._test_zmk_build(
             {
-                "nice_view_plus_tester_xiao": ConfigAndDeviceTree(
+                "zmk_svg_tester_xiao": ConfigAndDeviceTree(
                     config=[
                         # Verify that the config entry is present
                         'CONFIG_ZMK_KEYBOARD_NAME="Module Test"',

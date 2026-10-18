@@ -1,4 +1,4 @@
-# Nice!view Plus Widget Restyle Proposal
+# ZMK SVG Widget Restyle Proposal
 
 ## Scope
 
@@ -34,7 +34,7 @@ Dividers span `(2, 33)` to `(158, 33)` and `(2, 55)` to `(158, 55)`. Battery fil
 
 The preview below uses the native 160 x 68 landscape proportions and the widget coordinates above. It shows USB, profile 1 selected, central battery charging at 87%, peripheral battery at 64%, and layer 0. Text and symbols approximate LVGL glyph rendering.
 
-![Approximate Nice!view Plus screen preview at 160 x 68](nice-view-plus-preview.svg)
+![Approximate ZMK SVG screen preview at 160 x 68](nice-view-plus-preview.svg)
 
 The screen has no WPM row. The display output remains in its native 160 x 68 orientation; arrange the artwork and widgets in the SVG for the desired reading direction.
 
@@ -42,7 +42,7 @@ The screen has no WPM row. The display output remains in its native 160 x 68 ori
 
 - Use the same widget order and visual treatment on both halves.
 - Mirror central and peripheral battery state, host/output, BLE profile state, and active layer to both displays.
-- Retain WPM in the status packet and send its updates only when `CONFIG_ZMK_WPM` is enabled; Nice!view Plus does not enable or render WPM itself.
+- Retain WPM in the status packet and send its updates only when `CONFIG_ZMK_WPM` is enabled; ZMK SVG does not enable or render WPM itself.
 - Show the same static split arrangement icon on both displays without role-specific text.
 - Display the same layer index on both halves. The split status packet is version 2 and includes central battery state.
 

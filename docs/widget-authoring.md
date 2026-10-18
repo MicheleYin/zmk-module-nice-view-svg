@@ -1,6 +1,6 @@
 # Screen and Widget Authoring
 
-Nice!view Plus screens are authored as SVGs at the panel's native 160 x 68 resolution. The SVG contains static artwork and marks dynamic fields with `data-nvp-*` attributes. Host tools rasterize the artwork and generate LVGL bindings; firmware does not parse SVG. This is a source-and-preview workflow, not a visual editor.
+ZMK SVG screens are authored at the panel's native resolution. Each SVG `viewBox` defines its pixel canvas; existing Nice!View designs use 160 x 68, while the bundled OLED design uses 128 x 32. The SVG contains static artwork and marks dynamic fields with `data-nvp-*` attributes. Host tools rasterize the artwork and generate LVGL bindings; firmware does not parse SVG or scale it to fit another panel.
 
 ## Ready-to-Use Screens
 
@@ -10,6 +10,7 @@ These complete examples validate against the current widget and status-field cat
 - [compact.svg](examples/compact.svg) emphasizes two battery readings and a large layer index, with host and split status in a footer.
 - [widget-example.svg](widget-example.svg) demonstrates individual widget types and conditional USB/BLE artwork.
 - [screens/default.svg](screens/default.svg), [screens/day.svg](screens/day.svg), and [screens/night.svg](screens/night.svg) are the themes used by the firmware.
+- [screens/oled-128x32.svg](screens/oled-128x32.svg) and [screens/oled-128x32-mirror.svg](screens/oled-128x32-mirror.svg) are compact 128 x 32 SSD1306 designs for left and right halves.
 
 To inspect an example, run these commands from the module root:
 
@@ -32,17 +33,19 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 Enable the SVG screen and left-side design in that firmware image:
 
 ```conf
-CONFIG_ZMK_NICE_VIEW_PLUS=y
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT=y
+CONFIG_ZMK_SVG=y
+CONFIG_ZMK_SVG_SCREEN=y
+CONFIG_ZMK_SVG_THEME_LEFT=y
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
-The `default`, `left`, and `right` selectors load `src/generated_screen.h`, `src/generated_day_screen.h`, and `src/generated_night_screen.h`, respectively. The left and right generated headers currently use the sun/day and moon/night artwork from `docs/screens/day.svg` and `docs/screens/night.svg`. Generating an example into one of those paths replaces that header; keep its source SVG so it can be regenerated later. The Sofle build matrix selects left on the left half and right on the right half.
+The default `Automatic` selector chooses from the panel's Devicetree dimensions: 160 x 68 uses `src/generated_screen.h`; 128 x 32 uses `src/generated_oled_screen.h` on the left and `src/generated_oled_mirror_screen.h` on the right. Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right half to select the mirrored OLED artwork. The explicit `Left` and `Right` selectors are for custom 160 x 68 Nice!View artwork and load `src/generated_day_screen.h` and `src/generated_night_screen.h`. A panel/header mismatch fails the build.
+
+To customize Nice!View, edit a 160 x 68 SVG and generate it to the left or right header. To customize OLED, use a 128 x 32 SVG and generate both the normal and mirrored sources to the two OLED headers. SVG artwork works in OLED mode; it is rasterized at the SVG's native resolution, never scaled. Keep each source SVG beside its generated header so it can be regenerated later.
 
 ## Authoring Rules
 
-1. Set `viewBox="0 0 160 68"`. Use black and white fills for the monochrome panel.
+1. Set a zero-origin `viewBox` to the target panel's exact dimensions, for example `viewBox="0 0 128 32"`. Use black and white fills for the monochrome panel.
 2. Put each logical widget inside an SVG `<g>` with a unique `id` and a `data-nvp-widget` type from `tools/widget_types.json`.
 3. Put dynamic elements inside their widget. Each needs a supported `data-nvp-slot`, `data-nvp-bind` field from `tools/status_fields.json`, and `data-nvp-render` renderer.
 4. Add `data-nvp-role="peripheral"` for values unavailable on the central display, or `data-nvp-role="central"` for central-only fields.
@@ -84,9 +87,13 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/default.svg --output src/generated_screen.h
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/day.svg --output src/generated_day_screen.h
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/night.svg --output src/generated_night_screen.h
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/oled-128x32.svg --output src/generated_oled_screen.h
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/oled-128x32-mirror.svg --output src/generated_oled_mirror_screen.h
 ```
 
-The preview applies fixture values to bound text, bars, and conditional shapes. SVGs are limited to 22 dynamic bindings. Physical `battery.left.*` and `battery.right.*` fields use `CONFIG_ZMK_NICE_VIEW_PLUS_CENTRAL_RIGHT_HALF` to map central/peripheral providers to physical sides; set it consistently for both halves if the central is physically on the right.
+Use `--invert` with the static preview command to inspect fully inverted output. The live preview has a polarity selector; start it with `--legacy-inverted` to match firmware using `CONFIG_NICE_VIEW_WIDGET_INVERTED=y`. `CONFIG_ZMK_SVG_WHITE_BACKGROUND=y` forces empty areas back to white while preserving legacy behavior when disabled.
+
+The preview applies fixture values to bound text, bars, and conditional shapes. SVGs are limited to 22 dynamic bindings. Physical `battery.left.*` and `battery.right.*` fields use `CONFIG_ZMK_SVG_CENTRAL_RIGHT_HALF` to map central/peripheral providers to physical sides; set it consistently for both halves if the central is physically on the right.
 
 ## Firmware Setup
 

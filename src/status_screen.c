@@ -9,6 +9,11 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/display.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/util.h>
 
 #include <lvgl.h>
 
@@ -43,11 +48,22 @@
 
 #define MAX_BLE_PROFILES 8
 
+LOG_MODULE_REGISTER(zmk_svg_status, CONFIG_ZMK_LOG_LEVEL);
+
+#if !IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
+BUILD_ASSERT((DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&
+              DT_PROP(DT_CHOSEN(zephyr_display), height) == 32) ||
+                 (DT_PROP(DT_CHOSEN(zephyr_display), width) == 160 &&
+                  DT_PROP(DT_CHOSEN(zephyr_display), height) == 68),
+             "Native status screen supports only 128x32 and 160x68 displays");
+#endif
+
 static lv_obj_t *screen;
 static struct zmk_nvp_screen_state state;
 static void schedule_render(void);
 
-#if !IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN)
+#if !IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
+static bool compact_layout;
 static lv_obj_t *widgets[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT];
 static lv_obj_t *battery_fills[2];
 static lv_obj_t *battery_texts[2];
@@ -59,13 +75,18 @@ static lv_obj_t *profile_boxes[MAX_BLE_PROFILES];
 static lv_obj_t *profile_labels[MAX_BLE_PROFILES];
 static uint8_t profile_box_count;
 static lv_obj_t *layer_text;
+static lv_obj_t *split_indicator;
 
 static lv_color_t foreground_color(void) {
-    return IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) ? lv_color_white() : lv_color_black();
+    bool inverted = IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) &&
+                    !IS_ENABLED(CONFIG_ZMK_SVG_WHITE_BACKGROUND);
+    return inverted ? lv_color_white() : lv_color_black();
 }
 
 static lv_color_t background_color(void) {
-    return IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) ? lv_color_black() : lv_color_white();
+    bool inverted = IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) &&
+                    !IS_ENABLED(CONFIG_ZMK_SVG_WHITE_BACKGROUND);
+    return inverted ? lv_color_black() : lv_color_white();
 }
 
 static lv_obj_t *create_group(lv_obj_t *parent, lv_coord_t x, lv_coord_t y, lv_coord_t width,
@@ -106,33 +127,43 @@ static lv_obj_t *create_label(lv_obj_t *parent, lv_coord_t x, lv_coord_t y, cons
 }
 
 static void update_profile_boxes(void) {
-    uint8_t count = MIN(state.ble_profile_count, MAX_BLE_PROFILES);
-    lv_coord_t button_width = count > 5 ? 13 : 18;
-    lv_coord_t button_pitch = count > 5 ? 15 : 22;
+    uint8_t count = compact_layout ? (state.ble_profile_count > 0 ? 1 : 0)
+                                   : MIN(state.ble_profile_count, MAX_BLE_PROFILES);
+    lv_coord_t button_width = compact_layout ? 9 : (count > 5 ? 13 : 18);
+    lv_coord_t button_pitch = compact_layout ? 10 : (count > 5 ? 15 : 22);
 
     while (profile_box_count < count) {
         uint8_t profile = profile_box_count++;
-        lv_coord_t x = 37 + profile * button_pitch;
-        profile_boxes[profile] = create_shape(profile_widget, x, 1, button_width, 15, false, 1, 2);
+        lv_coord_t x = (compact_layout ? 25 : 37) + profile * button_pitch;
+        profile_boxes[profile] =
+            create_shape(profile_widget, x, 1, button_width, compact_layout ? 10 : 15, false, 1, 2);
         profile_labels[profile] =
             create_label(profile_widget, x, 1, &lv_font_unscii_8, foreground_color());
-        lv_obj_set_size(profile_labels[profile], button_width, 15);
+        lv_obj_set_size(profile_labels[profile], button_width, compact_layout ? 10 : 15);
         lv_obj_set_style_text_align(profile_labels[profile], LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        char number[2];
-        snprintf(number, sizeof(number), "%u", profile + 1);
-        lv_label_set_text(profile_labels[profile], number);
+        if (compact_layout) {
+            char number[2] = "-";
+            if (state.active_ble_profile != ZMK_SPLIT_BLE_STATUS_NO_PROFILE) {
+                snprintf(number, sizeof(number), "%u", state.active_ble_profile + 1);
+            }
+            lv_label_set_text(profile_labels[profile], number);
+        } else {
+            char number[2];
+            snprintf(number, sizeof(number), "%u", profile + 1);
+            lv_label_set_text(profile_labels[profile], number);
+        }
     }
 
     for (uint8_t profile = 0; profile < profile_box_count; profile++) {
         lv_obj_t *box = profile_boxes[profile];
         lv_obj_t *label = profile_labels[profile];
         bool visible = profile < count;
-        lv_coord_t x = 37 + profile * button_pitch;
+        lv_coord_t x = (compact_layout ? 25 : 37) + profile * button_pitch;
 
         lv_obj_set_pos(box, x, 1);
-        lv_obj_set_size(box, button_width, 15);
+        lv_obj_set_size(box, button_width, compact_layout ? 10 : 15);
         lv_obj_set_pos(label, x, 1);
-        lv_obj_set_size(label, button_width, 15);
+        lv_obj_set_size(label, button_width, compact_layout ? 10 : 15);
         if (!visible) {
             lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
@@ -141,7 +172,15 @@ static void update_profile_boxes(void) {
 
         lv_obj_clear_flag(box, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(label, LV_OBJ_FLAG_HIDDEN);
-        bool selected = state.active_ble_profile == profile;
+        if (compact_layout) {
+            char number[2] = "-";
+            if (state.active_ble_profile != ZMK_SPLIT_BLE_STATUS_NO_PROFILE) {
+                snprintf(number, sizeof(number), "%u", state.active_ble_profile + 1);
+            }
+            lv_label_set_text(label, number);
+        }
+        bool selected = compact_layout ? state.active_ble_profile != ZMK_SPLIT_BLE_STATUS_NO_PROFILE
+                                       : state.active_ble_profile == profile;
         lv_obj_set_style_bg_opa(box, selected ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(box, selected ? 0 : 1, LV_PART_MAIN);
         lv_obj_set_style_text_color(label, selected ? background_color() : foreground_color(),
@@ -153,7 +192,7 @@ static void update_profile_boxes(void) {
 static void render_status(struct k_work *work) {
     ARG_UNUSED(work);
 
-#if IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN)
+#if IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
     zmk_nvp_svg_screen_update(&state);
 #else
 
@@ -179,6 +218,14 @@ static void render_status(struct k_work *work) {
         lv_label_set_text(
             battery_charge_icons[battery],
             charge_states[battery] == ZMK_BATTERY_CHARGE_STATE_CHARGING ? LV_SYMBOL_CHARGE : "");
+    }
+
+    if (compact_layout) {
+        for (uint8_t battery = 0; battery < ARRAY_SIZE(battery_levels); battery++) {
+            if (battery_levels[battery] <= 100) {
+                lv_obj_set_width(battery_fills[battery], (12 * battery_levels[battery]) / 100);
+            }
+        }
     }
 
     bool output_connected = false;
@@ -207,6 +254,11 @@ static void render_status(struct k_work *work) {
                             LV_PART_MAIN);
 
     update_profile_boxes();
+
+    if (compact_layout) {
+        lv_obj_set_style_bg_opa(split_indicator,
+                                state.split_connected ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
+    }
 
     snprintf(text, sizeof(text), "%u", state.active_layer);
     lv_label_set_text(layer_text, text);
@@ -346,9 +398,30 @@ lv_obj_t *zmk_display_status_screen(void) {
     state.ble_profile_count = 0;
 #endif
 
-#if IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN)
+#if IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
     screen = zmk_nvp_svg_screen_create();
 #else
+    const struct device *display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+    struct display_capabilities capabilities;
+    if (!device_is_ready(display_device)) {
+        LOG_ERR("Display device is not ready");
+        return NULL;
+    }
+    display_get_capabilities(display_device, &capabilities);
+    if (capabilities.x_resolution != DT_PROP(DT_CHOSEN(zephyr_display), width) ||
+        capabilities.y_resolution != DT_PROP(DT_CHOSEN(zephyr_display), height)) {
+        LOG_ERR("Display reports %ux%u, but Devicetree configures %ux%u",
+                (unsigned int)capabilities.x_resolution, (unsigned int)capabilities.y_resolution,
+                (unsigned int)DT_PROP(DT_CHOSEN(zephyr_display), width),
+                (unsigned int)DT_PROP(DT_CHOSEN(zephyr_display), height));
+        return NULL;
+    }
+#if DT_PROP(DT_CHOSEN(zephyr_display), width) == 128
+    compact_layout = true;
+#else
+    compact_layout = false;
+#endif
+
     screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen, background_color(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
@@ -356,15 +429,25 @@ lv_obj_t *zmk_display_status_screen(void) {
     lv_obj_set_style_pad_all(screen, 0, LV_PART_MAIN);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    create_shape(screen, 2, 33, 156, 1, true, 0, 0);
-    create_shape(screen, 2, 55, 156, 1, true, 0, 0);
-
-    static const lv_coord_t widget_positions[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
+    static const lv_coord_t widget_positions_full[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
         {0, 0}, {0, 56}, {0, 35}, {113, 2}, {88, 56},
     };
-    static const lv_coord_t widget_sizes[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
+    static const lv_coord_t widget_sizes_full[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
         {88, 30}, {80, 12}, {160, 18}, {45, 28}, {72, 12},
     };
+    static const lv_coord_t widget_positions_compact[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
+        {0, 0}, {64, 0}, {92, 0}, {64, 14}, {96, 14},
+    };
+    static const lv_coord_t widget_sizes_compact[ZMK_NICE_VIEW_PLUS_WIDGET_COUNT][2] = {
+        {64, 32}, {28, 12}, {36, 12}, {32, 18}, {32, 18},
+    };
+    const lv_coord_t(*widget_positions)[2] =
+        compact_layout ? widget_positions_compact : widget_positions_full;
+    const lv_coord_t(*widget_sizes)[2] = compact_layout ? widget_sizes_compact : widget_sizes_full;
+    if (!compact_layout) {
+        create_shape(screen, 2, 33, 156, 1, true, 0, 0);
+        create_shape(screen, 2, 55, 156, 1, true, 0, 0);
+    }
     struct zmk_nice_view_plus_layout layout;
     zmk_nice_view_plus_layout_get(&layout);
     for (size_t i = 0; i < ARRAY_SIZE(widgets); i++) {
@@ -373,37 +456,70 @@ lv_obj_t *zmk_display_status_screen(void) {
                                   widget_sizes[slot][0], widget_sizes[slot][1]);
         if (i == ZMK_NICE_VIEW_PLUS_WIDGET_BATTERY) {
             for (uint8_t battery = 0; battery < ARRAY_SIZE(battery_fills); battery++) {
-                lv_coord_t outline_y = battery == 0 ? 3 : 18;
-                lv_coord_t fill_y = battery == 0 ? 6 : 21;
-                create_shape(widgets[i], 3, outline_y, 22, 10, false, 1, 1);
-                create_shape(widgets[i], 26, outline_y + 3, 2, 5, true, 0, 0);
-                battery_fills[battery] = create_shape(widgets[i], 6, fill_y, 18, 5, true, 0, 0);
-                battery_texts[battery] = create_label(widgets[i], 32, outline_y - 2,
+                lv_coord_t outline_y = compact_layout ? battery * 15 + 1 : (battery == 0 ? 3 : 18);
+                lv_coord_t fill_y = compact_layout ? outline_y + 2 : outline_y + 3;
+                create_shape(widgets[i], compact_layout ? 0 : 3, outline_y,
+                             compact_layout ? 16 : 22, compact_layout ? 7 : 10, false, 1, 1);
+                create_shape(widgets[i], compact_layout ? 16 : 26, outline_y + 2, 2,
+                             compact_layout ? 3 : 5, true, 0, 0);
+                battery_fills[battery] =
+                    create_shape(widgets[i], compact_layout ? 2 : 6, fill_y,
+                                 compact_layout ? 12 : 18, compact_layout ? 3 : 5, true, 0, 0);
+                battery_texts[battery] = create_label(widgets[i], compact_layout ? 21 : 32,
+                                                      compact_layout ? outline_y : outline_y - 2,
                                                       &lv_font_unscii_8, foreground_color());
                 battery_charge_icons[battery] = create_label(
-                    widgets[i], 9, outline_y - 2, &lv_font_montserrat_12, background_color());
+                    widgets[i], compact_layout ? 1 : 9, compact_layout ? outline_y : outline_y - 2,
+                    compact_layout ? &lv_font_unscii_8 : &lv_font_montserrat_12,
+                    background_color());
+                if (compact_layout) {
+                    lv_obj_add_flag(battery_charge_icons[battery], LV_OBJ_FLAG_HIDDEN);
+                }
             }
         } else if (i == ZMK_NICE_VIEW_PLUS_WIDGET_OUTPUT) {
-            output_text = create_label(widgets[i], 4, 1, &lv_font_unscii_8, foreground_color());
-            output_indicator = create_shape(widgets[i], 28, 3, 6, 6, false, 1, 3);
+            output_text = create_label(widgets[i], compact_layout ? 0 : 4, 1, &lv_font_unscii_8,
+                                       foreground_color());
+            output_indicator =
+                create_shape(widgets[i], compact_layout ? 24 : 28, 3, compact_layout ? 4 : 6,
+                             compact_layout ? 4 : 6, false, 1, 3);
         } else if (i == ZMK_NICE_VIEW_PLUS_WIDGET_PROFILES) {
-            lv_obj_t *ble_label =
-                create_label(widgets[i], 4, 2, &lv_font_montserrat_8, foreground_color());
+            lv_obj_t *ble_label = create_label(
+                widgets[i], compact_layout ? 0 : 4, 2,
+                compact_layout ? &lv_font_unscii_8 : &lv_font_montserrat_8, foreground_color());
             lv_label_set_text(ble_label, "BLE");
             profile_widget = widgets[i];
         } else if (i == ZMK_NICE_VIEW_PLUS_WIDGET_LAYER) {
-            create_shape(widgets[i], 0, 0, 43, 27, false, 1, 2);
-            lv_obj_t *layer_label =
-                create_label(widgets[i], 4, 1, &lv_font_montserrat_8, foreground_color());
+            create_shape(widgets[i], 0, 0, compact_layout ? 32 : 43, compact_layout ? 18 : 27,
+                         false, 1, 2);
+            lv_obj_t *layer_label = create_label(
+                widgets[i], compact_layout ? 1 : 4, 1,
+                compact_layout ? &lv_font_unscii_8 : &lv_font_montserrat_8, foreground_color());
             lv_label_set_text(layer_label, "LAYER");
-            layer_text = create_label(widgets[i], 1, 6, &lv_font_montserrat_20, foreground_color());
-            lv_obj_set_size(layer_text, 41, 21);
+            layer_text =
+                create_label(widgets[i], 1, compact_layout ? 6 : 6,
+                             compact_layout ? &lv_font_montserrat_12 : &lv_font_montserrat_20,
+                             foreground_color());
+            lv_obj_set_size(layer_text, compact_layout ? 30 : 41, compact_layout ? 12 : 21);
             lv_obj_set_style_text_align(layer_text, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
         } else {
+            if (compact_layout) {
+                bool right_half = IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF);
+                lv_obj_t *half =
+                    create_label(widgets[i], 0, 2, &lv_font_montserrat_12, foreground_color());
+                lv_label_set_text(half, right_half ? "R" : "L");
+                split_indicator = create_shape(widgets[i], 15, 4, 8, 8, false, 1, 4);
+                if (!state.split_connected) {
+                    lv_obj_set_style_bg_opa(split_indicator, LV_OPA_TRANSP, LV_PART_MAIN);
+                }
+                if (!layout.widgets[i].visible) {
+                    lv_obj_add_flag(widgets[i], LV_OBJ_FLAG_HIDDEN);
+                }
+                continue;
+            }
             lv_obj_t *split_label =
                 create_label(widgets[i], 0, 1, &lv_font_montserrat_8, foreground_color());
             lv_label_set_text(split_label, "SPLIT");
-            bool right_half = IS_ENABLED(CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF);
+            bool right_half = IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF);
             create_shape(widgets[i], 37, 2, 14, 9, !right_half, 1, 1);
             create_shape(widgets[i], 55, 2, 14, 9, right_half, 1, 1);
             lv_obj_t *left = create_label(widgets[i], 37, 2, &lv_font_montserrat_8,

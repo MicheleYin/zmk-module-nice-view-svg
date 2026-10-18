@@ -195,8 +195,8 @@
       "available_on": ["central", "peripheral"],
       "values": ["left", "right"],
       "sources": {
-        "central": "CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF",
-        "peripheral": "CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF"
+        "central": "CONFIG_ZMK_SVG_RIGHT_HALF",
+        "peripheral": "CONFIG_ZMK_SVG_RIGHT_HALF"
       }
     },
     {

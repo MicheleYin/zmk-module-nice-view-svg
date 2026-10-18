@@ -3,7 +3,7 @@
      viewBox="0 0 160 68"
      shape-rendering="crispEdges">
 
-  <title>Nice!view Plus — Status Screen</title>
+      <title>ZMK SVG — Status Screen</title>
   <desc>Monochrome keyboard status display with charging battery, peripheral battery, layer, BLE profiles, USB and split status.</desc>
 
   <rect width="160" height="68" fill="#fff"/>

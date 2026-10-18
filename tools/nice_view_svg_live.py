@@ -51,7 +51,9 @@ def _default_value(field: dict[str, Any]) -> Any:
 
 
 def build_preview_config(
-    svg_path: Path, initial_role: str = "central"
+    svg_path: Path,
+    initial_role: str = "central",
+    legacy_inverted: bool = False,
 ) -> dict[str, Any]:
     if initial_role not in ROLES:
         raise ValueError(f"unknown display role: {initial_role}")
@@ -64,6 +66,8 @@ def build_preview_config(
         raise ValueError("\n".join(errors))
 
     root = ET.fromstring(svg_text)
+    view_box = root.get("viewBox", "").replace(",", " ").split()
+    width, height = int(view_box[2]), int(view_box[3])
     bindings: dict[str, dict[str, Any]] = {}
     for element in root.iter():
         field_id = element.get("data-nvp-bind")
@@ -102,7 +106,11 @@ def build_preview_config(
 
     return {
         "title": svg_path.name,
+        "width": width,
+        "height": height,
         "initialRole": initial_role,
+        "legacyInverted": legacy_inverted,
+        "initialInversionMode": "legacy",
         "bindings": descriptors,
         "values": values_by_role,
     }
@@ -147,8 +155,11 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             request = json.loads(self.rfile.read(length))
             role = request.get("role")
             values = request.get("values")
+            inversion_mode = request.get("inversionMode", "legacy")
             if role not in ROLES or not isinstance(values, dict):
                 raise ValueError("request needs a role and values object")
+            if inversion_mode not in {"legacy", "white-background"}:
+                raise ValueError("unknown inversion mode")
             svg = preview_svg_text(
                 self.server.svg_text,
                 self.server.fields,
@@ -156,7 +167,15 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
                 role,
                 self.server.widget_catalog,
             )
-            self._send(200, "image/png", _monochrome_preview_png(_rasterize_png(svg)))
+            inverted = (
+                inversion_mode == "legacy"
+                and self.server.preview_config["legacyInverted"]
+            )
+            self._send(
+                200,
+                "image/png",
+                _monochrome_preview_png(_rasterize_png(svg), inverted),
+            )
         except (TypeError, ValueError, RuntimeError) as error:
             self._send(400, TEXT_CONTENT_TYPE, str(error).encode("utf-8"))
 
@@ -168,12 +187,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("svg", type=Path, help="screen SVG to preview")
     parser.add_argument("--role", choices=sorted(ROLES), default="central")
+    parser.add_argument(
+        "--legacy-inverted",
+        action="store_true",
+        help="preview the legacy CONFIG_NICE_VIEW_WIDGET_INVERTED output",
+    )
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-browser", action="store_true")
     arguments = parser.parse_args(argv)
 
     try:
-        config = build_preview_config(arguments.svg, arguments.role)
+        config = build_preview_config(
+            arguments.svg, arguments.role, arguments.legacy_inverted
+        )
         fields = load_catalog(TOOLS_DIR / "status_fields.json")
         widget_catalog = load_widget_catalog(TOOLS_DIR / "widget_types.json")
         server = LivePreviewServer(("127.0.0.1", arguments.port), LivePreviewHandler)

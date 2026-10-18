@@ -1,8 +1,8 @@
-# ZMK Nice!view Plus
+# ZMK SVG
 
-[![Build](https://github.com/MicheleYin/zmk-module-nice-view-svg/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/MicheleYin/zmk-module-nice-view-svg/actions/workflows/zmk-module.yml)
+[![Build](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml)
 
-Nice!view Plus is a ZMK module for a configurable status screen on Nice!view displays. Both halves show central and peripheral battery levels, the active layer, BLE profiles, host output, and split status in the same landscape layout. WPM is not enabled by this module, but remains in the optional status packet if another configuration enables it.
+ZMK SVG is a ZMK module for status screens on Nice!View displays and 128 x 32 SSD1306 OLEDs. It provides native LVGL layouts for 160 x 68 and 128 x 32 panels, plus authored SVG screens that must match the panel's native resolution. WPM is not enabled by this module, but remains in the optional status packet if another configuration enables it.
 
 ## Screen preview
 
@@ -12,7 +12,7 @@ Both halves show this same screen and the same central/peripheral values. The pr
 
 The split-link indicator shows connected or disconnected state on both halves. On the central it means at least one peripheral is connected; on a peripheral it means its link to the central is connected.
 
-![Approximate Nice!view Plus screen preview at 160 x 68](docs/nice-view-plus-preview.svg)
+![Approximate ZMK SVG screen preview at 160 x 68](docs/nice-view-plus-preview.svg)
 
 The pixel positions and widget bounds are listed in [the widget restyle proposal](docs/widget-restyle-proposal.md).
 
@@ -29,11 +29,11 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_svg
 ```
 
-The live preview opens a local browser view of the 160 x 68, 1-bit monochrome raster, using the same black/white threshold as firmware generation. Change any bound status field to simulate text, percentages, bars, rings, or conditional elements; switch between central and peripheral roles to inspect each display. Stop the preview server with `Ctrl+C`.
+The live preview opens a 1-bit monochrome raster at the source SVG's dimensions, using the same black/white threshold as firmware generation. Change any bound status field to simulate text, percentages, bars, rings, or conditional elements; switch between central and peripheral roles and choose legacy or white-background polarity. Use `--legacy-inverted` when firmware has `CONFIG_NICE_VIEW_WIDGET_INVERTED=y`. Stop the preview server with `Ctrl+C`.
 
 WPM values are available when `CONFIG_ZMK_WPM` is enabled.
 
-The preview tool also supports `--rotate-180` for inspecting an artwork variant. This only rotates the generated preview image; it does not change firmware display orientation.
+The static preview also supports `--invert` and `--rotate-180` for inspecting output polarity and artwork orientation. These affect preview images only, not firmware display orientation.
 
 Dynamic elements use `data-nvp-bind`, `data-nvp-render`, and optional `data-nvp-role` SVG attributes. Their typed field definitions live in `tools/status_fields.json`; sample values for each half are in `tools/sample_status.*.json`. SVGs are limited to 22 dynamic bindings to keep the LVGL object budget bounded; firmware pool use still needs to be verified on device.
 
@@ -62,24 +62,24 @@ Each half is built as a separate firmware image, so it can use a different scree
 
 ```conf
 # Both halves
-CONFIG_ZMK_NICE_VIEW_PLUS=y
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y
+CONFIG_ZMK_SVG=y
+CONFIG_ZMK_SVG_SCREEN=y
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
 ```conf
 # Left half uses the sun/day artwork
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_LEFT=y
+CONFIG_ZMK_SVG_THEME_LEFT=y
 ```
 
 ```conf
 # Right half uses the moon/night artwork
-CONFIG_ZMK_NICE_VIEW_PLUS_SVG_THEME_RIGHT=y
+CONFIG_ZMK_SVG_THEME_RIGHT=y
 ```
 
 ## Compatibility and setup
 
-This module is currently supported with MicheleYin's ZMK fork on the `feature/nice-view` branch. It depends on that branch's split-BLE status synchronization and peripheral battery level/charge-state fetching, which let both Nice!view displays show central-owned status and the remote half's battery data. The module enables these fork-specific Kconfig features, so upstream ZMK or another revision is not a supported replacement.
+This module is currently supported with MicheleYin's ZMK fork on the `feature/nice-view` branch. It depends on that branch's split-BLE status synchronization and peripheral battery level/charge-state fetching, which let both Nice!View displays show central-owned status and the remote half's battery data. The module enables these fork-specific Kconfig features, so upstream ZMK or another revision is not a supported replacement.
 
 Pin both ZMK and this module in your configuration's `config/west.yml`:
 
@@ -90,8 +90,8 @@ manifest:
             url: https://github.com/MicheleYin/zmk.git
             revision: feature/nice-view
             import: app/west.yml
-        - name: zmk-module-nice-view-svg
-            url: https://github.com/MicheleYin/zmk-module-nice-view-svg
+        - name: zmk-module-svg
+            url: https://github.com/MicheleYin/zmk-module-svg
             revision: feature/nice-view
 ```
 
@@ -111,19 +111,24 @@ west zephyr-export
 
 ## Use the module
 
-In the configuration file used by each half, disable Nice!view's built-in screen and enable Nice!view Plus:
+Enable ZMK SVG in the configuration used by each display:
+
+```conf
+CONFIG_ZMK_SVG=y
+```
+
+For Nice!View shields only, also disable the built-in Nice!View status screen:
 
 ```conf
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
-CONFIG_ZMK_NICE_VIEW_PLUS=y
 ```
 
 To highlight the right side in the split indicator, set this only in the right half's configuration:
 
 ```conf
-CONFIG_ZMK_NICE_VIEW_PLUS_RIGHT_HALF=y
+CONFIG_ZMK_SVG_RIGHT_HALF=y
 ```
 
-Keep `nice_view` in the shield list and ensure Settings/NVS is enabled for persistent layouts. The module requires `ZMK_DISPLAY` and Settings; split BLE status synchronization is selected automatically for split BLE builds.
+Keep `nice_view` in the shield list for Nice!View panels. For SSD1306 panels, enable `ZMK_DISPLAY` in the shield configuration. The module requires `ZMK_DISPLAY` and Settings; native layouts support 160 x 68 and 128 x 32. SVG headers are selected at build time from the chosen display's Devicetree dimensions, and a mismatched header stops the build. Split BLE status synchronization is selected automatically for split BLE builds.
 
-The status screen supports generated SVG artwork with `CONFIG_ZMK_NICE_VIEW_PLUS_SVG_SCREEN=y`. The left and right selectors load `src/generated_day_screen.h` and `src/generated_night_screen.h`; their editable SVG sources are `docs/screens/day.svg` and `docs/screens/night.svg`. The default theme matches `docs/screens/default.svg`. Edit a source and regenerate its checked-in header as described in [Screen and Widget Authoring](docs/widget-authoring.md). Version-1 saved layout records fall back to the version-2 defaults.
+The status screen supports generated SVG artwork with `CONFIG_ZMK_SVG_SCREEN=y`. The default `Automatic` theme selects the 160 x 68 Nice!View screen or 128 x 32 OLED screen from the board's display node. Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right OLED half to use its mirrored SVG. For custom 160 x 68 Nice!View artwork, opt into the `Left` or `Right` theme; for OLED, edit both 128 x 32 SVG variants and regenerate their headers. `CONFIG_ZMK_SVG_WHITE_BACKGROUND=y` keeps empty areas white even when legacy Nice!View widget inversion is enabled. See [Screen and Widget Authoring](docs/widget-authoring.md) for the complete source-to-firmware workflow. Version-1 saved layout records fall back to the version-2 defaults.

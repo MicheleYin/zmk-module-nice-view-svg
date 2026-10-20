@@ -28,23 +28,8 @@ config ZMK_SVG_SCREEN
     default n
     help
       Render the generated monochrome SVG artwork and native status bindings.
-      The screen header must be regenerated when the source SVG changes.
-
-    choice ZMK_SVG_THEME
-      prompt "ZMK SVG screen theme"
-      depends on ZMK_SVG_SCREEN
-      default ZMK_SVG_THEME_AUTO
-
-    config ZMK_SVG_THEME_AUTO
-      bool "Automatic (match display resolution)"
-
-    config ZMK_SVG_THEME_LEFT
-      bool "Left"
-
-    config ZMK_SVG_THEME_RIGHT
-      bool "Right"
-
-    endchoice
+      The screen header is selected by display dimensions and physical half,
+      and must be regenerated when its source SVG changes.
 
     config ZMK_SVG_CENTRAL_RIGHT_HALF
       bool "The split central is the physical right half"

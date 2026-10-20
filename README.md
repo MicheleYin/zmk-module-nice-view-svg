@@ -25,11 +25,12 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.central.json --role central --output /tmp/nice_view_plus_central.png
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.peripheral.json --role peripheral --output /tmp/nice_view_plus_peripheral.png
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/nice-view-plus-preview.svg --output /tmp/nice_view_plus_svg.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg_live.py docs/screens/day.svg
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg_live.py docs/screens/niceview-left.svg
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate-defaults
 uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_svg
 ```
 
-The live preview opens a 1-bit monochrome raster at the source SVG's dimensions, using the same black/white threshold as firmware generation. Change any bound status field to simulate text, percentages, bars, rings, or conditional elements; switch between central and peripheral roles and choose legacy or white-background polarity. Use `--legacy-inverted` when firmware has `CONFIG_NICE_VIEW_WIDGET_INVERTED=y`. Stop the preview server with `Ctrl+C`.
+The live preview opens a 1-bit monochrome raster at the source SVG's dimensions, using the same black/white threshold as firmware generation. Change any bound status field to simulate text, percentages, bars, rings, or conditional elements; switch between central and peripheral roles and choose legacy or white-background polarity. Each preview has independent rotate, flip, and reset controls for checking physical orientation; these controls affect only the editor view and never modify the SVG or generated firmware. Set the final artwork orientation in the SVG itself before regenerating headers. Use `--legacy-inverted` when firmware has `CONFIG_NICE_VIEW_WIDGET_INVERTED=y`. Stop the preview server with `Ctrl+C`.
 
 WPM values are available when `CONFIG_ZMK_WPM` is enabled.
 
@@ -46,9 +47,11 @@ The designs in [docs/examples](docs/examples/) and themes in [docs/screens](docs
 | [activity.svg](docs/examples/activity.svg) | <img src="docs/examples/activity.svg" alt="Activity ring example" width="160"> | Paired battery progress rings with charging marks and compact status details. |
 | [cards.svg](docs/examples/cards.svg) | <img src="docs/examples/cards.svg" alt="Segmented cards example" width="160"> | Segmented battery, layer, and host cards above a BLE profile row. |
 | [compact.svg](docs/examples/compact.svg) | <img src="docs/examples/compact.svg" alt="Compact status example" width="160"> | Prominent battery meters and layer number with host and split status in the footer. |
-| [day.svg](docs/screens/day.svg) | <img src="docs/screens/day.svg" alt="Daytime mountain status screen" width="160"> | Daytime mountain theme with battery, layer, host, profile, and split status. |
+| [niceview-left.svg](docs/screens/niceview-left.svg) | <img src="docs/screens/niceview-left.svg" alt="Left Nice!View screen" width="160"> | 160 x 68 screen for the physical left half. |
 | [infograph.svg](docs/examples/infograph.svg) | <img src="docs/examples/infograph.svg" alt="Infograph example" width="160"> | Circular battery complications with layer, host, and BLE profile status. |
-| [night.svg](docs/screens/night.svg) | <img src="docs/screens/night.svg" alt="Night mountain status screen" width="160"> | Nighttime mountain theme with battery, layer, host, profile, and split status. |
+| [niceview-right.svg](docs/screens/niceview-right.svg) | <img src="docs/screens/niceview-right.svg" alt="Right Nice!View screen" width="160"> | 160 x 68 screen for the physical right half. |
+| [oled-left.svg](docs/screens/oled-left.svg) | <img src="docs/screens/oled-left.svg" alt="Left OLED screen" width="160"> | 128 x 32 screen for the physical left half. |
+| [oled-right.svg](docs/screens/oled-right.svg) | <img src="docs/screens/oled-right.svg" alt="Right OLED screen" width="160"> | 128 x 32 screen for the physical right half. |
 | [rounded.svg](docs/examples/rounded.svg) | <img src="docs/examples/rounded.svg" alt="Rounded interface example" width="160"> | Rounded battery panels, a pill-shaped layer display, and BLE profile selector. |
 | [terminal.svg](docs/examples/terminal.svg) | <img src="docs/examples/terminal.svg" alt="Terminal status example" width="160"> | Monospace status readout with battery bars, host output, and profile indicators. |
 | [three-column.svg](docs/examples/three-column.svg) | <img src="docs/examples/three-column.svg" alt="Three-column status example" width="160"> | Narrow battery, layer, and host columns with BLE profiles along the bottom. |
@@ -56,9 +59,9 @@ The designs in [docs/examples](docs/examples/) and themes in [docs/screens](docs
 | [wpm-tile.svg](docs/examples/wpm-tile.svg) | <img src="docs/examples/wpm-tile.svg" alt="High-contrast WPM tile example" width="160"> | High-contrast WPM tile with a compact pace label. |
 | [watch.svg](docs/examples/watch.svg) | <img src="docs/examples/watch.svg" alt="Watch face example" width="160"> | Watch-face layout with battery bars, a circular layer complication, and host status. |
 
-### Different themes on each half
+### Left and Right Screens
 
-Each half is built as a separate firmware image, so it can use a different screen theme. To use the sun/day screen on the left and the moon/night screen on the right, enable SVG screens in both images and select one theme per image:
+The generated screen is selected automatically from the display dimensions and physical half. Enable it for both firmware images:
 
 ```conf
 # Both halves
@@ -68,14 +71,11 @@ CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
 ```conf
-# Left half uses the sun/day artwork
-CONFIG_ZMK_SVG_THEME_LEFT=y
+# Right-half firmware only. The left half leaves this unset.
+CONFIG_ZMK_SVG_RIGHT_HALF=y
 ```
 
-```conf
-# Right half uses the moon/night artwork
-CONFIG_ZMK_SVG_THEME_RIGHT=y
-```
+Edit the matching `docs/screens/niceview-*.svg` or `docs/screens/oled-*.svg` source, then run `uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate-defaults` before building firmware. This refreshes all four checked-in headers.
 
 ## Compatibility and setup
 
@@ -145,4 +145,4 @@ CONFIG_ZMK_SVG_RIGHT_HALF=y
 
 Keep `nice_view` in the shield list for Nice!View panels. For SSD1306 panels, enable `ZMK_DISPLAY` in the shield configuration. The module requires `ZMK_DISPLAY` and Settings; native layouts support 160 x 68 and 128 x 32. SVG headers are selected at build time from the chosen display's Devicetree dimensions, and a mismatched header stops the build. Split BLE status synchronization is selected automatically for split BLE builds.
 
-The status screen supports generated SVG artwork with `CONFIG_ZMK_SVG_SCREEN=y`. The default `Automatic` theme selects the 160 x 68 Nice!View screen or 128 x 32 OLED screen from the board's display node. Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right OLED half to use its mirrored SVG. For custom 160 x 68 Nice!View artwork, opt into the `Left` or `Right` theme; for OLED, edit both 128 x 32 SVG variants and regenerate their headers. `CONFIG_ZMK_SVG_WHITE_BACKGROUND=y` keeps empty areas white even when legacy Nice!View widget inversion is enabled. See [Screen and Widget Authoring](docs/widget-authoring.md) for the complete source-to-firmware workflow. Version-1 saved layout records fall back to the version-2 defaults.
+The status screen supports generated SVG artwork with `CONFIG_ZMK_SVG_SCREEN=y`. Display dimensions select Nice!View (160 x 68) or OLED (128 x 32); `CONFIG_ZMK_SVG_RIGHT_HALF=y` selects the right-side artwork on either panel. `CONFIG_ZMK_SVG_WHITE_BACKGROUND=y` keeps empty areas white even when legacy Nice!View widget inversion is enabled. See [Screen and Widget Authoring](docs/widget-authoring.md) for the source-to-firmware workflow. Version-1 saved layout records fall back to the version-2 defaults.

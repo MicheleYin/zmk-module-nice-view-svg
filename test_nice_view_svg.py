@@ -2,8 +2,10 @@ import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from http.client import HTTPConnection
 from io import BytesIO
 from pathlib import Path
+from threading import Thread
 
 from tools.nice_view_svg import (
     MAX_DYNAMIC_BINDINGS,
@@ -15,12 +17,20 @@ from tools.nice_view_svg import (
     _pack_i2_pixels,
     _pack_monochrome_pixels,
     _rotate_png_180,
+    generate,
+    generate_default_screens,
     load_catalog,
     load_widget_catalog,
+    preview,
     preview_svg_text,
     validate_svg_text,
 )
-from tools.nice_view_svg_live import build_preview_config
+from tools.nice_view_svg_live import (
+    LivePreviewHandler,
+    LivePreviewServer,
+    build_live_preview_config,
+    build_preview_config,
+)
 
 ROOT = Path(__file__).parent
 CATALOG_PATH = ROOT / "tools" / "status_fields.json"
@@ -46,40 +56,48 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
-    def test_screen_theme_sources_validate_against_widget_catalog(self):
-        header_names = {
-            "default": "generated_screen.h",
-            "day": "generated_day_screen.h",
-            "night": "generated_night_screen.h",
-            "oled-128x32": "generated_oled_screen.h",
-            "oled-128x32-mirror": "generated_oled_mirror_screen.h",
-        }
-        for theme in (
-            "default",
-            "day",
-            "night",
-            "oled-128x32",
-            "oled-128x32-mirror",
+    def test_side_and_panel_sources_match_generated_headers(self):
+        for source_name, header_name in (
+            ("niceview-left.svg", "generated_niceview_left_screen.h"),
+            ("niceview-right.svg", "generated_niceview_right_screen.h"),
+            ("oled-left.svg", "generated_oled_left_screen.h"),
+            ("oled-right.svg", "generated_oled_right_screen.h"),
         ):
-            with self.subTest(theme=theme):
-                svg_path = ROOT / "docs" / "screens" / f"{theme}.svg"
+            with self.subTest(source=source_name):
+                svg_path = ROOT / "docs" / "screens" / source_name
                 errors = validate_svg_text(
                     svg_path.read_text(), FIELDS, widget_catalog=WIDGETS
                 )
                 self.assertEqual(errors, [])
-                header = (ROOT / "src" / header_names[theme]).read_text()
-                width, height = (
-                    (128, 32) if theme.startswith("oled-128x32") else (160, 68)
-                )
+                header = (ROOT / "src" / header_name).read_text()
+                width, height = (128, 32) if source_name.startswith("oled-") else (160, 68)
                 self.assertIn(f"#define ZMK_NVP_SVG_WIDTH {width}", header)
                 self.assertIn(f"#define ZMK_NVP_SVG_HEIGHT {height}", header)
 
-    def test_day_and_night_ble_assets_contain_visible_pixels(self):
-        for theme in ("day", "night"):
-            with self.subTest(theme=theme):
-                svg_text = (ROOT / "docs" / "screens" / f"{theme}.svg").read_text()
+    def test_generate_default_screens_writes_all_four_headers(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            output_dir = Path(temporary_directory)
+            generate_default_screens(ROOT / "docs" / "screens", CATALOG_PATH, output_dir)
+
+            headers = sorted(path.name for path in output_dir.glob("*.h"))
+
+        self.assertEqual(
+            headers,
+            [
+                "generated_niceview_left_screen.h",
+                "generated_niceview_right_screen.h",
+                "generated_oled_left_screen.h",
+                "generated_oled_right_screen.h",
+            ],
+        )
+
+    def test_niceview_sides_ble_assets_contain_visible_pixels(self):
+        for side in ("left", "right"):
+            with self.subTest(side=side):
+                svg_path = ROOT / "docs" / "screens" / f"niceview-{side}.svg"
+                svg_text = svg_path.read_text()
                 root = ET.fromstring(svg_text)
-                assets = _compile_visible_assets(svg_text)
+                assets = _compile_visible_assets(svg_text, svg_path)
                 for index, element in enumerate(root.iter()):
                     if element.get("data-nvp-bind") not in {
                         "ble.active_profile",
@@ -97,9 +115,9 @@ class NiceViewSvgValidationTests(unittest.TestCase):
 
     def test_time_field_is_removed_from_themes_and_catalog(self):
         self.assertNotIn("time.current", FIELDS)
-        for theme in ("day", "night"):
-            with self.subTest(theme=theme):
-                root = ET.parse(ROOT / "docs" / "screens" / f"{theme}.svg").getroot()
+        for side in ("niceview-left", "niceview-right"):
+            with self.subTest(side=side):
+                root = ET.parse(ROOT / "docs" / "screens" / f"{side}.svg").getroot()
                 bindings = {element.get("data-nvp-bind") for element in root.iter()}
                 self.assertNotIn("time.current", bindings)
 
@@ -150,6 +168,173 @@ class NiceViewSvgValidationTests(unittest.TestCase):
         self.assertTrue(config["legacyInverted"])
         self.assertEqual(config["initialInversionMode"], "legacy")
 
+    def test_generate_and_preview_resolve_relative_image_hrefs(self):
+        image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            image_module.new("RGB", (1, 1), "black").save(directory / "pixel.png")
+            svg_path = directory / "screen.svg"
+            svg_path.write_text(
+                make_svg(
+                    '<image width="1" height="1" href="pixel.png"/>',
+                    "0 0 2 1",
+                )
+            )
+            header_path = directory / "screen.h"
+            values_path = directory / "values.json"
+            values_path.write_text('{"values": {}}')
+            preview_path = directory / "preview.png"
+
+            generate(svg_path, CATALOG_PATH, header_path)
+            preview(svg_path, CATALOG_PATH, values_path, "central", preview_path)
+
+            bitmap = header_path.read_text().split(
+                "zmk_nvp_svg_background_data[] = {", 1
+            )[1].split("};", 1)[0]
+            self.assertIn("0x80,", bitmap)
+            with image_module.open(preview_path) as result:
+                self.assertEqual(result.get_flattened_data(), (0, 255))
+
+    def test_visible_asset_compilation_resolves_relative_image_hrefs(self):
+        image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            image_module.new("RGB", (2, 2), "black").save(directory / "icon.png")
+            svg_path = directory / "screen.svg"
+            svg_path.write_text(
+                make_svg(
+                    '<g data-nvp-bind="output.selected" '
+                    'data-nvp-render="visible" data-nvp-when="usb" '
+                    'data-nvp-bounds="0,0,2,2">'
+                    '<image width="2" height="2" href="icon.png"/></g>',
+                    "0 0 2 2",
+                )
+            )
+
+            assets = _compile_visible_assets(svg_path.read_text(), svg_path)
+
+        self.assertEqual(assets[1], (2, 2, bytes([0x50, 0x50])))
+
+    def test_live_preview_resolves_relative_image_hrefs(self):
+        image_module = _load_pillow_image("tests require uv and tools/requirements.txt")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            image_module.new("RGB", (1, 1), "black").save(directory / "pixel.png")
+            image_module.new("RGB", (1, 1), "white").save(directory / "white.png")
+            svg_path = directory / "screen.svg"
+            svg_path.write_text(
+                make_svg('<image width="1" height="1" href="pixel.png"/>', "0 0 2 1")
+            )
+            right_svg_path = directory / "right.svg"
+            right_svg_path.write_text(
+                make_svg('<image width="1" height="1" href="white.png"/>', "0 0 2 1")
+            )
+            sources = {
+                "niceview": {"left": svg_path, "right": right_svg_path},
+                "oled": {"left": svg_path, "right": right_svg_path},
+            }
+            server = LivePreviewServer(("127.0.0.1", 0), LivePreviewHandler)
+            server.sources = sources
+            server.preview_config = build_live_preview_config(sources)
+            server.svg_texts = {
+                display: {side: path.read_text() for side, path in paths.items()}
+                for display, paths in sources.items()
+            }
+            server.fields = FIELDS
+            server.widget_catalog = WIDGETS
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = HTTPConnection("127.0.0.1", server.server_port)
+            try:
+                connection.request("GET", "/config")
+                config_response = connection.getresponse()
+                config = json.loads(config_response.read())
+                self.assertEqual(config_response.status, 200)
+                self.assertEqual(config["initialCentralSide"], "left")
+                initial_revision = config["revision"]
+                self.assertEqual(
+                    set(config["displays"]["niceview"]["screens"]),
+                    {"left", "right"},
+                )
+
+                connection.request(
+                    "POST",
+                    "/render",
+                    body=json.dumps(
+                        {
+                            "display": "niceview",
+                            "side": "left",
+                            "sourceMode": "distinct",
+                            "role": "central",
+                            "values": {},
+                            "inversionMode": "white-background",
+                        }
+                    ),
+                )
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                with image_module.open(BytesIO(response.read())) as result:
+                    self.assertEqual(result.get_flattened_data(), (0, 255))
+
+                connection.request(
+                    "POST",
+                    "/render",
+                    body=json.dumps(
+                        {
+                            "display": "niceview",
+                            "side": "right",
+                            "sourceMode": "shared",
+                            "role": "peripheral",
+                            "values": {},
+                            "inversionMode": "white-background",
+                        }
+                    ),
+                )
+                shared_response = connection.getresponse()
+                self.assertEqual(shared_response.status, 200)
+                with image_module.open(BytesIO(shared_response.read())) as result:
+                    self.assertEqual(result.get_flattened_data(), (0, 255))
+
+                connection.request(
+                    "POST",
+                    "/render",
+                    body=json.dumps(
+                        {
+                            "display": "niceview",
+                            "side": "right",
+                            "sourceMode": "distinct",
+                            "role": "peripheral",
+                            "values": {},
+                            "inversionMode": "white-background",
+                        }
+                    ),
+                )
+                distinct_response = connection.getresponse()
+                self.assertEqual(distinct_response.status, 200)
+                with image_module.open(BytesIO(distinct_response.read())) as result:
+                    self.assertEqual(result.get_flattened_data(), (255, 255))
+
+                svg_path.write_text(
+                    make_svg('<image width="1" height="1" href="white.png"/>', "0 0 2 1")
+                )
+                connection.request("GET", "/config")
+                changed_config_response = connection.getresponse()
+                changed_config = json.loads(changed_config_response.read())
+                self.assertNotEqual(changed_config["revision"], initial_revision)
+                self.assertIsNone(changed_config["reloadError"])
+
+                svg_path.write_text("<svg>")
+                connection.request("GET", "/config")
+                invalid_config_response = connection.getresponse()
+                invalid_config = json.loads(invalid_config_response.read())
+                self.assertEqual(invalid_config["revision"], changed_config["revision"])
+                self.assertTrue(invalid_config["reloadError"])
+            finally:
+                connection.close()
+                server.shutdown()
+                thread.join()
+                server.server_close()
+
     def test_split_connected_is_available_on_both_roles(self):
         field = FIELDS["split.connected"]
         self.assertEqual(set(field["available_on"]), {"central", "peripheral"})
@@ -157,9 +342,9 @@ class NiceViewSvgValidationTests(unittest.TestCase):
             set(field["sources"]),
             {"central", "peripheral"},
         )
-        for theme in ("default", "day", "night"):
-            with self.subTest(theme=theme):
-                path = ROOT / "docs" / "screens" / f"{theme}.svg"
+        for screen_name in ("default", "niceview-left", "niceview-right"):
+            with self.subTest(screen=screen_name):
+                path = ROOT / "docs" / "screens" / f"{screen_name}.svg"
                 config = build_preview_config(path)
                 binding = next(
                     item
@@ -192,8 +377,8 @@ class NiceViewSvgValidationTests(unittest.TestCase):
                     self.assertEqual(binding["roles"], ["central", "peripheral"])
                 self.assertEqual(config["values"]["central"]["wpm.current"], 42)
 
-    def test_day_theme_shows_both_split_connection_states(self):
-        svg = (ROOT / "docs" / "screens" / "day.svg").read_text()
+    def test_niceview_left_shows_both_split_connection_states(self):
+        svg = (ROOT / "docs" / "screens" / "niceview-left.svg").read_text()
         for role in ("central", "peripheral"):
             for connected in (True, False):
                 with self.subTest(role=role, connected=connected):

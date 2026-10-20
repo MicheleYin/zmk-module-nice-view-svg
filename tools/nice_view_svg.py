@@ -23,6 +23,12 @@ PREPROCESSOR_ENDIF = "#endif"
 ROLES = {"central", "peripheral"}
 RENDERERS = {"text", "percent", "bar", "ring", "visible"}
 NUMERIC_TYPES = {"integer", "percent"}
+DEFAULT_SCREENS = (
+    ("niceview-left.svg", "generated_niceview_left_screen.h"),
+    ("niceview-right.svg", "generated_niceview_right_screen.h"),
+    ("oled-left.svg", "generated_oled_left_screen.h"),
+    ("oled-right.svg", "generated_oled_right_screen.h"),
+)
 
 
 def load_catalog(path: Path) -> dict[str, dict[str, Any]]:
@@ -704,11 +710,13 @@ def _pack_i2_png(data: bytes, bounds: tuple[int, int, int, int]) -> bytes:
         return _pack_i2_pixels(pixels, width, height)
 
 
-def _rasterize(svg_text: str) -> bytes:
+def _rasterize(svg_text: str, base_path: Path | None = None) -> bytes:
     rasterizer = shutil.which("rsvg-convert")
     if not rasterizer:
         raise RuntimeError("preview/generation requires rsvg-convert")
-    return _pack_monochrome_png(_rasterize_png(svg_text, rasterizer))
+    return _pack_monochrome_png(
+        _rasterize_png(svg_text, rasterizer, base_path=base_path)
+    )
 
 
 def _isolated_visible_svg(svg_text: str, target_index: int) -> str:
@@ -740,7 +748,9 @@ def parents_for(
     return chain
 
 
-def _compile_visible_assets(svg_text: str) -> dict[int, tuple[int, int, bytes]]:
+def _compile_visible_assets(
+    svg_text: str, source_path: Path | None = None
+) -> dict[int, tuple[int, int, bytes]]:
     root = ET.fromstring(svg_text)
     screen_size = _required_view_box_size(root, "visible assets")
     parents = {child: parent for parent in root.iter() for child in parent}
@@ -755,7 +765,7 @@ def _compile_visible_assets(svg_text: str) -> dict[int, tuple[int, int, bytes]]:
                 f"{element.get('data-nvp-bind')}"
             )
         visible_svg = _isolated_visible_svg(svg_text, element_index)
-        png = _rasterize_png(visible_svg)
+        png = _rasterize_png(visible_svg, base_path=source_path)
         _, _, width, height = bounds
         assets[element_index] = (width, height, _pack_i2_png(png, bounds))
     return assets
@@ -1138,12 +1148,19 @@ def generate(svg_path: Path, catalog_path: Path, output_path: Path) -> None:
     errors = validate_svg_text(svg_text, fields, widget_catalog=widget_catalog)
     if errors:
         raise ValueError("\n".join(errors))
-    bitmap = _rasterize(_static_svg_text(svg_text))
-    visible_assets = _compile_visible_assets(svg_text)
+    bitmap = _rasterize(_static_svg_text(svg_text), base_path=svg_path)
+    visible_assets = _compile_visible_assets(svg_text, svg_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
         _generate_header(svg_text, bitmap, visible_assets).rstrip() + "\n"
     )
+
+
+def generate_default_screens(
+    screens_dir: Path, catalog_path: Path, output_dir: Path
+) -> None:
+    for source_name, header_name in DEFAULT_SCREENS:
+        generate(screens_dir / source_name, catalog_path, output_dir / header_name)
 
 
 def preview(
@@ -1162,7 +1179,9 @@ def preview(
     values = values_document.get("values", values_document)
     rendered_svg = preview_svg_text(svg_text, fields, values, role, widget_catalog)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    png = _monochrome_preview_png(_rasterize_png(rendered_svg), inverted)
+    png = _monochrome_preview_png(
+        _rasterize_png(rendered_svg, base_path=svg_path), inverted
+    )
     output_path.write_bytes(_rotate_png_180(png) if rotate_180 else png)
 
 
@@ -1174,22 +1193,44 @@ def _rotate_png_180(data: bytes) -> bytes:
         return output.getvalue()
 
 
-def _rasterize_png(svg_text: str, rasterizer: str | None = None) -> bytes:
+def _rasterize_png(
+    svg_text: str,
+    rasterizer: str | None = None,
+    base_path: Path | None = None,
+) -> bytes:
     rasterizer = rasterizer or shutil.which("rsvg-convert")
     if not rasterizer:
         raise RuntimeError("preview/generation requires rsvg-convert")
     screen_size = _required_view_box_size(ET.fromstring(svg_text), "rasterization")
     screen_width, screen_height = screen_size
+    arguments = [
+        rasterizer,
+        "-w",
+        str(screen_width),
+        "-h",
+        str(screen_height),
+    ]
+    if base_path is not None:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".svg",
+            dir=base_path.resolve().parent,
+        ) as svg_file:
+            svg_file.write(svg_text)
+            svg_file.flush()
+            return subprocess.run(
+                [*arguments, svg_file.name],
+                check=True,
+                capture_output=True,
+            ).stdout
+
     with tempfile.TemporaryDirectory() as temporary_directory:
         svg_path = Path(temporary_directory) / "screen.svg"
         svg_path.write_text(svg_text)
         return subprocess.run(
             [
-                rasterizer,
-                "-w",
-                str(screen_width),
-                "-h",
-                str(screen_height),
+                *arguments,
                 str(svg_path),
             ],
             check=True,
@@ -1214,6 +1255,17 @@ def main(argv: list[str] | None = None) -> int:
     generate_parser.add_argument("svg", type=Path)
     generate_parser.add_argument("--catalog", type=Path, default=catalog_default)
     generate_parser.add_argument("--output", type=Path, required=True)
+
+    defaults_parser = subparsers.add_parser(
+        "generate-defaults", help="generate all bundled left/right screen headers"
+    )
+    defaults_parser.add_argument(
+        "--screens-dir", type=Path, default=Path(__file__).parent.parent / "docs/screens"
+    )
+    defaults_parser.add_argument("--catalog", type=Path, default=catalog_default)
+    defaults_parser.add_argument(
+        "--output-dir", type=Path, default=Path(__file__).parent.parent / "src"
+    )
 
     preview_parser = subparsers.add_parser(
         "preview", help="render SVG using sample status values"
@@ -1240,6 +1292,11 @@ def main(argv: list[str] | None = None) -> int:
         elif arguments.command == "generate":
             generate(arguments.svg, arguments.catalog, arguments.output)
             print(f"Generated {arguments.output}")
+        elif arguments.command == "generate-defaults":
+            generate_default_screens(
+                arguments.screens_dir, arguments.catalog, arguments.output_dir
+            )
+            print(f"Generated {len(DEFAULT_SCREENS)} default screen headers")
         else:
             preview(
                 arguments.svg,

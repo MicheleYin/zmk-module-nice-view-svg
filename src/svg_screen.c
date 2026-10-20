@@ -25,30 +25,22 @@
 
 #include <lvgl.h>
 
-#if IS_ENABLED(CONFIG_ZMK_SVG_THEME_LEFT)
-#if DT_PROP(DT_CHOSEN(zephyr_display), width) != 160 ||                                            \
-    DT_PROP(DT_CHOSEN(zephyr_display), height) != 68
-#error "The left Nice!View SVG theme requires a 160x68 display"
-#endif
-#include "generated_day_screen.h"
-#elif IS_ENABLED(CONFIG_ZMK_SVG_THEME_RIGHT)
-#if DT_PROP(DT_CHOSEN(zephyr_display), width) != 160 ||                                            \
-    DT_PROP(DT_CHOSEN(zephyr_display), height) != 68
-#error "The right Nice!View SVG theme requires a 160x68 display"
-#endif
-#include "generated_night_screen.h"
-#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&                                          \
+#if DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&                                             \
     DT_PROP(DT_CHOSEN(zephyr_display), height) == 32
 #if IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF)
-#include "generated_oled_mirror_screen.h"
+#include "generated_oled_right_screen.h"
 #else
-#include "generated_oled_screen.h"
+#include "generated_oled_left_screen.h"
 #endif
 #elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 160 &&                                          \
     DT_PROP(DT_CHOSEN(zephyr_display), height) == 68
-#include "generated_screen.h"
+#if IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF)
+#include "generated_niceview_right_screen.h"
 #else
-#error "Automatic SVG theme supports 160x68 and 128x32 displays; author a matching source SVG"
+#include "generated_niceview_left_screen.h"
+#endif
+#else
+#error "ZMK SVG supports 160x68 Nice!View and 128x32 OLED displays"
 #endif
 
 BUILD_ASSERT(ZMK_NVP_SVG_WIDTH == DT_PROP(DT_CHOSEN(zephyr_display), width),

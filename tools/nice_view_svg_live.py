@@ -1,6 +1,7 @@
 """Serve a live raster preview for a Nice!view SVG screen."""
 
 import argparse
+import hashlib
 import json
 import webbrowser
 import xml.etree.ElementTree as ET
@@ -116,11 +117,121 @@ def build_preview_config(
     }
 
 
+def build_live_preview_config(
+    sources: dict[str, dict[str, Path]],
+    central_side: str = "left",
+    legacy_inverted: bool = False,
+) -> dict[str, Any]:
+    if central_side not in {"left", "right"}:
+        raise ValueError(f"unknown central side: {central_side}")
+
+    displays: dict[str, Any] = {}
+    for display, paths in sources.items():
+        if set(paths) != {"left", "right"}:
+            raise ValueError(f"{display} needs left and right SVG sources")
+        screens = {
+            side: build_preview_config(path, legacy_inverted=legacy_inverted)
+            for side, path in paths.items()
+        }
+        dimensions = {
+            (screen["width"], screen["height"]) for screen in screens.values()
+        }
+        if len(dimensions) != 1:
+            raise ValueError(
+                f"{display} left and right SVGs must have matching dimensions"
+            )
+        bindings_by_id: dict[str, dict[str, Any]] = {}
+        for screen in screens.values():
+            for descriptor in screen["bindings"]:
+                binding = bindings_by_id.get(descriptor["id"])
+                if binding is None:
+                    bindings_by_id[descriptor["id"]] = {
+                        **descriptor,
+                        "roles": set(descriptor["roles"]),
+                        "renderers": set(descriptor["renderers"]),
+                    }
+                else:
+                    binding["roles"].update(descriptor["roles"])
+                    binding["renderers"].update(descriptor["renderers"])
+
+        bindings = []
+        for binding in bindings_by_id.values():
+            binding["roles"] = sorted(binding["roles"])
+            binding["renderers"] = sorted(binding["renderers"])
+            bindings.append(binding)
+        values_by_role = {
+            role: {
+                binding["id"]: fixture_value
+                for binding in bindings
+                if (fixture_value := next(
+                    (
+                        screen["values"][role][binding["id"]]
+                        for screen in screens.values()
+                        if binding["id"] in screen["values"][role]
+                    ),
+                    _default_value(binding),
+                )) is not None
+            }
+            for role in ROLES
+        }
+        displays[display] = {
+            "screens": {
+                side: {
+                    "title": screen["title"],
+                    "width": screen["width"],
+                    "height": screen["height"],
+                    "bindings": screen["bindings"],
+                }
+                for side, screen in screens.items()
+            },
+            "bindings": bindings,
+            "values": values_by_role,
+        }
+
+    if not displays:
+        raise ValueError("at least one display source set is required")
+    return {
+        "title": "Two-Sided SVG Preview",
+        "initialCentralSide": central_side,
+        "initialDisplay": "niceview" if "niceview" in displays else next(iter(displays)),
+        "initialSourceMode": "distinct",
+        "legacyInverted": legacy_inverted,
+        "initialInversionMode": "legacy",
+        "displays": displays,
+    }
+
+
 class LivePreviewServer(ThreadingHTTPServer):
     preview_config: dict[str, Any]
-    svg_text: str
+    sources: dict[str, dict[str, Path]]
+    svg_texts: dict[str, dict[str, str]]
+    source_revision: str
+    source_error: str | None
     fields: dict[str, Any]
     widget_catalog: dict[str, Any]
+
+    def refresh_sources(self) -> None:
+        try:
+            svg_texts = {
+                display: {side: path.read_text() for side, path in paths.items()}
+                for display, paths in self.sources.items()
+            }
+            preview_config = build_live_preview_config(
+                self.sources,
+                legacy_inverted=self.preview_config["legacyInverted"],
+            )
+            revision = hashlib.sha256(
+                json.dumps(svg_texts, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+        except (OSError, TypeError, ValueError) as error:
+            self.source_error = str(error)
+            return
+
+        if revision != getattr(self, "source_revision", None):
+            self.svg_texts = svg_texts
+            self.preview_config = preview_config
+            self.source_revision = revision
+        self.source_error = None
 
 
 class LivePreviewHandler(BaseHTTPRequestHandler):
@@ -139,7 +250,13 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
         if path in {"/", "/index.html"}:
             self._send(200, "text/html; charset=utf-8", PAGE_PATH.read_bytes())
         elif path == "/config":
-            body = json.dumps(self.server.preview_config).encode("utf-8")
+            self.server.refresh_sources()
+            config = {
+                **self.server.preview_config,
+                "revision": self.server.source_revision,
+                "reloadError": getattr(self.server, "source_error", None),
+            }
+            body = json.dumps(config).encode("utf-8")
             self._send(200, "application/json; charset=utf-8", body)
         else:
             self._send(404, TEXT_CONTENT_TYPE, b"Not found")
@@ -149,19 +266,36 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             self._send(404, TEXT_CONTENT_TYPE, b"Not found")
             return
         try:
+            self.server.refresh_sources()
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 65536:
                 raise ValueError("invalid request size")
             request = json.loads(self.rfile.read(length))
-            role = request.get("role")
+            display = request.get("display")
+            side = request.get("side")
+            source_mode = request.get("sourceMode")
+            central_side = request.get(
+                "centralSide", self.server.preview_config["initialCentralSide"]
+            )
             values = request.get("values")
             inversion_mode = request.get("inversionMode", "legacy")
-            if role not in ROLES or not isinstance(values, dict):
-                raise ValueError("request needs a role and values object")
+            if (
+                display not in self.server.sources
+                or side not in {"left", "right"}
+                or source_mode not in {"shared", "distinct"}
+                or central_side not in {"left", "right"}
+                or not isinstance(values, dict)
+            ):
+                raise ValueError(
+                    "request needs a display, side, source mode, central side, and values"
+                )
             if inversion_mode not in {"legacy", "white-background"}:
                 raise ValueError("unknown inversion mode")
+            role = "central" if side == central_side else "peripheral"
+            source_side = side if source_mode == "distinct" else "left"
+            svg_path = self.server.sources[display][source_side]
             svg = preview_svg_text(
-                self.server.svg_text,
+                self.server.svg_texts[display][source_side],
                 self.server.fields,
                 values,
                 role,
@@ -174,7 +308,9 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             self._send(
                 200,
                 "image/png",
-                _monochrome_preview_png(_rasterize_png(svg), inverted),
+                _monochrome_preview_png(
+                    _rasterize_png(svg, base_path=svg_path), inverted
+                ),
             )
         except (TypeError, ValueError, RuntimeError) as error:
             self._send(400, TEXT_CONTENT_TYPE, str(error).encode("utf-8"))
@@ -185,8 +321,10 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("svg", type=Path, help="screen SVG to preview")
-    parser.add_argument("--role", choices=sorted(ROLES), default="central")
+    parser.add_argument("svg", type=Path, nargs="?", help="optional SVG to use on both sides")
+    parser.add_argument("--right-svg", type=Path, help="optional distinct right-side SVG")
+    parser.add_argument("--panel", choices=("niceview", "oled"))
+    parser.add_argument("--central-side", choices=("left", "right"), default="left")
     parser.add_argument(
         "--legacy-inverted",
         action="store_true",
@@ -197,14 +335,50 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     try:
-        config = build_preview_config(
-            arguments.svg, arguments.role, arguments.legacy_inverted
+        screen_directory = Path(__file__).resolve().parent.parent / "docs" / "screens"
+        sources: dict[str, dict[str, Path]] = {
+            "niceview": {
+                side: screen_directory / f"niceview-{side}.svg"
+                for side in ("left", "right")
+            },
+            "oled": {
+                side: screen_directory / f"oled-{side}.svg"
+                for side in ("left", "right")
+            },
+        }
+        if arguments.svg is not None:
+            display = arguments.panel or (
+                "oled" if arguments.svg.name.startswith("oled-") else "niceview"
+            )
+            sources[display]["left"] = arguments.svg
+            if arguments.right_svg is not None:
+                sources[display]["right"] = arguments.right_svg
+            else:
+                inferred_right = arguments.svg.with_name(
+                    arguments.svg.name.replace("left", "right", 1)
+                )
+                sources[display]["right"] = (
+                    inferred_right if inferred_right.exists() else arguments.svg
+                )
+        if arguments.right_svg is not None and arguments.svg is None:
+            raise ValueError("--right-svg requires a left-side SVG argument")
+
+        config = build_live_preview_config(
+            sources, arguments.central_side, arguments.legacy_inverted
         )
         fields = load_catalog(TOOLS_DIR / "status_fields.json")
         widget_catalog = load_widget_catalog(TOOLS_DIR / "widget_types.json")
         server = LivePreviewServer(("127.0.0.1", arguments.port), LivePreviewHandler)
+        server.sources = sources
+        server.svg_texts = {
+            display: {side: path.read_text() for side, path in paths.items()}
+            for display, paths in sources.items()
+        }
+        server.source_revision = hashlib.sha256(
+            json.dumps(server.svg_texts, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        server.source_error = None
         server.preview_config = config
-        server.svg_text = arguments.svg.read_text()
         server.fields = fields
         server.widget_catalog = widget_catalog
     except (OSError, TypeError, ValueError) as error:

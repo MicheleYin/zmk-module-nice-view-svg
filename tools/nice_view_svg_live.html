@@ -40,37 +40,65 @@
     }
     main {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(290px, 370px);
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
       min-height: calc(100vh - 55px);
     }
     .stage {
-      display: grid;
-      align-content: start;
-      justify-items: center;
-      gap: 12px;
-      padding: clamp(18px, 5vw, 64px);
+      min-width: 0;
+      padding: 18px;
       border-right: 1px solid #cbd4ce;
     }
-    .screen {
-      width: min(100%, 800px);
-      aspect-ratio: 160 / 68;
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      padding-bottom: 16px;
+    }
+    .toolbar label { display: grid; gap: 4px; color: #53635c; font-size: 10px; }
+    .previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .preview-panel { min-width: 0; }
+    .preview-heading { display: flex; justify-content: space-between; gap: 10px; padding: 0 0 7px; font-size: 12px; }
+    .preview-role { color: #697870; }
+    .preview-tools { display: flex; align-items: center; gap: 4px; padding-bottom: 7px; }
+    .preview-tools button {
       display: grid;
+      width: 28px;
+      height: 26px;
+      place-items: center;
+      border: 1px solid #aab8b1;
+      border-radius: 3px;
+      color: #182421;
+      background: #fff;
+      font: inherit;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .preview-tools button:hover { background: #e4ebdf; }
+    .preview-tools button[aria-pressed="true"] { border-color: #52752d; background: #dbe7cf; }
+    .preview-tools button:focus-visible { outline: 2px solid #52752d; outline-offset: 2px; }
+    .preview-orientation { min-width: 34px; color: #53635c; font-size: 10px; text-align: right; }
+    .screen-frame {
+      width: var(--frame-width, 100%);
+      aspect-ratio: var(--frame-ratio, 160 / 68);
+      display: grid;
+      place-items: center;
+      justify-self: center;
+    }
+    .screen {
+      display: grid;
+      flex: none;
       place-items: center;
       overflow: hidden;
       border: 1px solid #35433d;
       background: #fff;
       box-shadow: 0 12px 28px #18242120;
+      transform-origin: center;
     }
-    #preview { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-    .screen-meta {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      width: min(100%, 800px);
-      color: #53635c;
-      font-size: 11px;
-    }
+    .preview-image { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    .screen-meta { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; color: #53635c; font-size: 10px; }
     #status { color: #45632a; text-align: right; }
+    #status.error { color: #a23c32; }
     aside { min-width: 0; background: #f8faf8; }
     .controls-heading {
       position: sticky;
@@ -109,10 +137,12 @@
     .toggle, .bit-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; }
     .toggle input, .bit-toggle input { accent-color: #52752d; }
     .bit-list { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+    #fields { max-height: calc(100vh - 102px); overflow: auto; }
     @media (max-width: 760px) {
       header { flex-wrap: wrap; padding: 10px 14px; }
       main { grid-template-columns: 1fr; }
-      .stage { padding: 26px 14px; border-right: 0; border-bottom: 1px solid #cbd4ce; }
+      .stage { padding: 14px; border-right: 0; border-bottom: 1px solid #cbd4ce; }
+      .previews { grid-template-columns: 1fr; }
       #fields { max-height: none; }
       .controls-heading { position: static; }
     }
@@ -121,14 +151,14 @@
 <body>
   <header>
     <div>
-      <div class="brand">NICE!VIEW / LIVE SVG</div>
+      <div class="brand">ZMK SVG / LIVE PREVIEW</div>
       <div class="source" id="source"></div>
     </div>
     <div class="header-controls">
-      <label class="role-control">Display role
-        <select id="role">
-          <option value="central">Central</option>
-          <option value="peripheral">Peripheral</option>
+      <label class="role-control">Central side
+        <select id="central-side">
+          <option value="left">Left</option>
+          <option value="right">Right</option>
         </select>
       </label>
       <label class="role-control">Polarity
@@ -140,9 +170,59 @@
     </div>
   </header>
   <main>
-    <section class="stage" aria-label="Raster preview">
-      <div class="screen"><img id="preview" alt="Live rasterized Nice!view screen"></div>
-      <div class="screen-meta"><span id="dimensions"></span><span id="status" aria-live="polite">Loading</span></div>
+    <section class="stage" aria-label="Left and right screen previews">
+      <div class="toolbar">
+        <label>Display type
+          <select id="display">
+            <option value="niceview">Nice!View · 160 × 68</option>
+            <option value="oled">OLED · 128 × 32</option>
+          </select>
+        </label>
+        <label>Artwork
+          <select id="source-mode">
+            <option value="distinct">Different left and right</option>
+            <option value="shared">Same on both sides</option>
+          </select>
+        </label>
+        <label>Edit values for
+          <select id="edit-side">
+            <option value="left">Left side</option>
+            <option value="right">Right side</option>
+          </select>
+        </label>
+      </div>
+      <div class="previews">
+        <article class="preview-panel">
+          <div class="preview-heading"><strong>Left</strong><span class="preview-role" id="role-left"></span></div>
+          <div class="preview-tools" aria-label="Left preview orientation">
+            <button type="button" data-side="left" data-action="rotate-left" aria-label="Rotate left preview counterclockwise" title="Rotate counterclockwise">↶</button>
+            <button type="button" data-side="left" data-action="rotate-right" aria-label="Rotate left preview clockwise" title="Rotate clockwise">↷</button>
+            <button type="button" data-side="left" data-action="flip-x" aria-pressed="false" aria-label="Flip left preview horizontally" title="Flip horizontally">↔</button>
+            <button type="button" data-side="left" data-action="flip-y" aria-pressed="false" aria-label="Flip left preview vertically" title="Flip vertically">↕</button>
+            <button type="button" data-side="left" data-action="reset" aria-label="Reset left preview orientation" title="Reset orientation">⟲</button>
+            <output class="preview-orientation" id="orientation-left" aria-live="polite">0°</output>
+          </div>
+          <div class="screen-frame" id="frame-left" data-side="left">
+            <div class="screen" id="screen-left"><img class="preview-image" id="preview-left" alt="Left-side status screen"></div>
+          </div>
+          <div class="screen-meta"><span id="dimensions-left"></span><span id="status-left" aria-live="polite">Loading</span></div>
+        </article>
+        <article class="preview-panel">
+          <div class="preview-heading"><strong>Right</strong><span class="preview-role" id="role-right"></span></div>
+          <div class="preview-tools" aria-label="Right preview orientation">
+            <button type="button" data-side="right" data-action="rotate-left" aria-label="Rotate right preview counterclockwise" title="Rotate counterclockwise">↶</button>
+            <button type="button" data-side="right" data-action="rotate-right" aria-label="Rotate right preview clockwise" title="Rotate clockwise">↷</button>
+            <button type="button" data-side="right" data-action="flip-x" aria-pressed="false" aria-label="Flip right preview horizontally" title="Flip horizontally">↔</button>
+            <button type="button" data-side="right" data-action="flip-y" aria-pressed="false" aria-label="Flip right preview vertically" title="Flip vertically">↕</button>
+            <button type="button" data-side="right" data-action="reset" aria-label="Reset right preview orientation" title="Reset orientation">⟲</button>
+            <output class="preview-orientation" id="orientation-right" aria-live="polite">0°</output>
+          </div>
+          <div class="screen-frame" id="frame-right" data-side="right">
+            <div class="screen" id="screen-right"><img class="preview-image" id="preview-right" alt="Right-side status screen"></div>
+          </div>
+          <div class="screen-meta"><span id="dimensions-right"></span><span id="status-right" aria-live="polite">Loading</span></div>
+        </article>
+      </div>
     </section>
     <aside>
       <div class="controls-heading">Bound status fields</div>
@@ -150,16 +230,109 @@
     </aside>
   </main>
   <script type="module">
-    const roleSelect = document.querySelector("#role");
+    const centralSideSelect = document.querySelector("#central-side");
+    const displaySelect = document.querySelector("#display");
+    const sourceModeSelect = document.querySelector("#source-mode");
+    const editSideSelect = document.querySelector("#edit-side");
     const inversionSelect = document.querySelector("#inversion");
     const fieldsRoot = document.querySelector("#fields");
-    const previewImage = document.querySelector("#preview");
-    const status = document.querySelector("#status");
+    const previewImages = {
+      left: document.querySelector("#preview-left"),
+      right: document.querySelector("#preview-right"),
+    };
+    const screens = {
+      left: document.querySelector("#screen-left"),
+      right: document.querySelector("#screen-right"),
+    };
+    const screenFrames = {
+      left: document.querySelector("#frame-left"),
+      right: document.querySelector("#frame-right"),
+    };
+    const statuses = {
+      left: document.querySelector("#status-left"),
+      right: document.querySelector("#status-right"),
+    };
+    const previewTransforms = {
+      left: { rotation: 0, flipX: false, flipY: false },
+      right: { rotation: 0, flipX: false, flipY: false },
+    };
     const controlState = new Map();
     let config;
-    let activeUrl;
-    let requestController;
+    let activeUrls = { left: null, right: null };
+    let requestControllers = { left: null, right: null };
     let renderTimer;
+    let revisionTimer;
+
+    function currentRole(side = editSideSelect.value) {
+      return side === centralSideSelect.value ? "central" : "peripheral";
+    }
+
+    function currentDisplayConfig() {
+      return config.displays[displaySelect.value];
+    }
+
+    function updatePreviewCanvasSize(side) {
+      if (!config) return;
+      const orientation = previewTransforms[side];
+      const frame = screenFrames[side];
+      const rotated = orientation.rotation % 180 !== 0;
+      const { width, height } = currentDisplayConfig().screens[side];
+      const canvasWidth = frame.parentElement.clientWidth;
+      const canvasHeight = canvasWidth * height / width;
+      frame.style.setProperty("--frame-width", `${rotated ? canvasHeight : canvasWidth}px`);
+      screens[side].style.width = `${canvasWidth}px`;
+      screens[side].style.height = `${canvasHeight}px`;
+    }
+
+    function updatePreviewOrientation(side) {
+      const orientation = previewTransforms[side];
+      const screen = currentDisplayConfig().screens[side];
+      const rotated = orientation.rotation % 180 !== 0;
+      screenFrames[side].style.aspectRatio = rotated
+        ? `${screen.height} / ${screen.width}`
+        : `${screen.width} / ${screen.height}`;
+      screens[side].style.transform = [
+        `rotate(${orientation.rotation}deg)`,
+        `scaleX(${orientation.flipX ? -1 : 1})`,
+        `scaleY(${orientation.flipY ? -1 : 1})`,
+      ].join(" ");
+      previewImages[side].style.transform = "none";
+      updatePreviewCanvasSize(side);
+      document.querySelector(`[data-side="${side}"][data-action="flip-x"]`)
+        .setAttribute("aria-pressed", String(orientation.flipX));
+      document.querySelector(`[data-side="${side}"][data-action="flip-y"]`)
+        .setAttribute("aria-pressed", String(orientation.flipY));
+      document.querySelector(`#orientation-${side}`).textContent = `${orientation.rotation}°`;
+    }
+
+    const frameObserver = new ResizeObserver(entries => {
+      for (const entry of entries) updatePreviewCanvasSize(entry.target.dataset.side);
+    });
+    for (const frame of Object.values(screenFrames)) frameObserver.observe(frame);
+
+    for (const button of document.querySelectorAll(".preview-tools button")) {
+      button.addEventListener("click", () => {
+        const orientation = previewTransforms[button.dataset.side];
+        switch (button.dataset.action) {
+          case "rotate-left":
+            orientation.rotation = (orientation.rotation + 270) % 360;
+            break;
+          case "rotate-right":
+            orientation.rotation = (orientation.rotation + 90) % 360;
+            break;
+          case "flip-x":
+            orientation.flipX = !orientation.flipX;
+            break;
+          case "flip-y":
+            orientation.flipY = !orientation.flipY;
+            break;
+          case "reset":
+            Object.assign(orientation, { rotation: 0, flipX: false, flipY: false });
+            break;
+        }
+        updatePreviewOrientation(button.dataset.side);
+      });
+    }
 
     function createEnumControl(field, editor, state) {
       const select = document.createElement("select");
@@ -270,7 +443,7 @@
       if (field.role_descriptions) {
         description = document.createElement("div");
         description.className = "field-description";
-        description.textContent = field.role_descriptions[roleSelect.value] ?? "";
+        description.textContent = field.role_descriptions[currentRole()] ?? "";
       }
       const editor = document.createElement("div");
       if (description) row.append(heading, description, editor);
@@ -308,85 +481,193 @@
     }
 
     function saveCurrentValue(state) {
-      config.values[roleSelect.value][state.field.id] = state.read();
+      currentDisplayConfig().values[currentRole()][state.field.id] = state.read();
     }
 
     function syncControls() {
-      const role = roleSelect.value;
+      const role = currentRole();
+      const values = currentDisplayConfig().values[role];
       for (const state of controlState.values()) {
-        const available = state.field.roles.includes(role);
+        const available = state.field.roles.includes(role)
+          && currentDisplayConfig().screens[editSideSelect.value].bindings
+            .some(binding => binding.id === state.field.id);
         state.row.classList.toggle("disabled", !available);
         for (const input of state.controls) input.disabled = !available;
         if (state.description) {
           state.description.textContent = state.field.role_descriptions[role] ?? "";
         }
-        state.write(config.values[role][state.field.id]);
+        if (values[state.field.id] !== undefined) state.write(values[state.field.id]);
       }
+    }
+
+    function rebuildFields() {
+      fieldsRoot.replaceChildren();
+      controlState.clear();
+      const sourceSide = sourceModeSelect.value === "shared" ? "left" : editSideSelect.value;
+      const bindings = currentDisplayConfig().screens[sourceSide].bindings;
+      const seen = new Set();
+      for (const binding of bindings) {
+        if (!seen.has(binding.id)) {
+          seen.add(binding.id);
+          createField(binding);
+        }
+      }
+      syncControls();
     }
 
     function queueRender() {
       clearTimeout(renderTimer);
-      status.textContent = "Rendering…";
+      for (const sideStatus of Object.values(statuses)) {
+        sideStatus.textContent = "Rendering…";
+      }
       renderTimer = setTimeout(renderPreview, 90);
     }
 
-    async function renderPreview() {
-      requestController?.abort();
-      requestController = new AbortController();
+    async function renderSide(side) {
+      requestControllers[side]?.abort();
+      requestControllers[side] = new AbortController();
+      const role = currentRole(side);
+      statuses[side].classList.remove("error");
+      statuses[side].textContent = "Rendering…";
       try {
         const response = await fetch("/render", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            role: roleSelect.value,
-            values: config.values[roleSelect.value],
+            display: displaySelect.value,
+            side,
+            centralSide: centralSideSelect.value,
+            sourceMode: sourceModeSelect.value,
+            values: currentDisplayConfig().values[role],
             inversionMode: inversionSelect.value,
           }),
-          signal: requestController.signal,
+          signal: requestControllers[side].signal,
         });
         if (!response.ok) throw new Error(await response.text());
         const nextUrl = URL.createObjectURL(await response.blob());
-        previewImage.src = nextUrl;
-        if (activeUrl) URL.revokeObjectURL(activeUrl);
-        activeUrl = nextUrl;
-        status.textContent = "Ready";
+        previewImages[side].src = nextUrl;
+        if (activeUrls[side]) URL.revokeObjectURL(activeUrls[side]);
+        activeUrls[side] = nextUrl;
+        statuses[side].textContent = "Ready";
       } catch (error) {
-        if (error.name !== "AbortError") status.textContent = error.message;
+        if (error.name !== "AbortError") {
+          statuses[side].classList.add("error");
+          statuses[side].textContent = error.message;
+        }
       }
     }
 
-    async function start() {
+    async function renderPreview() {
+      const centralSide = centralSideSelect.value;
+      for (const side of ["left", "right"]) {
+        document.querySelector(`#role-${side}`).textContent =
+          side === centralSide ? "Central" : "Peripheral";
+      }
+      await Promise.all([renderSide("left"), renderSide("right")]);
+    }
+
+    function updateScreenMetadata() {
+      const display = currentDisplayConfig();
+      for (const side of ["left", "right"]) {
+        const screen = display.screens[side];
+        screens[side].style.setProperty("--screen-ratio", `${screen.width} / ${screen.height}`);
+        document.querySelector(`#dimensions-${side}`).textContent =
+          `${screen.width} × ${screen.height} px`;
+        updatePreviewOrientation(side);
+      }
+      document.querySelector("#source").textContent =
+        `${displaySelect.options[displaySelect.selectedIndex].text} · ${sourceModeSelect.value === "shared" ? "shared artwork" : "separate artwork"}`;
+      for (const status of Object.values(statuses)) {
+        status.classList.remove("error");
+      }
+    }
+
+    function mergeValues(nextConfig, previousConfig) {
+      if (!previousConfig) return;
+      for (const [displayName, display] of Object.entries(nextConfig.displays)) {
+        const previousDisplay = previousConfig.displays[displayName];
+        if (!previousDisplay) continue;
+        for (const role of ["central", "peripheral"]) {
+          Object.assign(display.values[role], previousDisplay.values[role]);
+          for (const fieldId of Object.keys(display.values[role])) {
+            if (!display.bindings.some(binding => binding.id === fieldId)) {
+              delete display.values[role][fieldId];
+            }
+          }
+        }
+      }
+    }
+
+    async function loadConfig() {
       const response = await fetch("/config");
       if (!response.ok) throw new Error(await response.text());
-      config = await response.json();
+      const nextConfig = await response.json();
+      if (config && nextConfig.revision === config.revision) {
+        if (nextConfig.reloadError) {
+          statuses.left.textContent = `SVG error: ${nextConfig.reloadError}`;
+          statuses.right.textContent = `SVG error: ${nextConfig.reloadError}`;
+          statuses.left.classList.add("error");
+          statuses.right.classList.add("error");
+        }
+        return;
+      }
+      mergeValues(nextConfig, config);
+      const firstLoad = !config;
+      config = nextConfig;
+      if (firstLoad) {
+        centralSideSelect.value = config.initialCentralSide;
+        displaySelect.value = config.initialDisplay;
+        sourceModeSelect.value = config.initialSourceMode;
+        inversionSelect.value = config.initialInversionMode;
+      }
       document.title = `${config.title} · Nice!view Live Preview`;
-      document.querySelector("#source").textContent = config.title;
-      const screen = document.querySelector(".screen");
-      screen.style.aspectRatio = `${config.width} / ${config.height}`;
-      previewImage.width = config.width;
-      previewImage.height = config.height;
-      document.querySelector("#dimensions").textContent =
-        `${config.width} × ${config.height} px · 1-bit monochrome`;
-      inversionSelect.value = config.initialInversionMode;
-      const updateScreenPolarity = () => {
+      for (const screen of Object.values(screens)) {
         screen.style.background = inversionSelect.value === "legacy" && config.legacyInverted
           ? "#000"
           : "#fff";
-        queueRender();
-      };
-      inversionSelect.addEventListener("change", updateScreenPolarity);
-      screen.style.background = config.legacyInverted ? "#000" : "#fff";
-      roleSelect.value = config.initialRole;
-      for (const field of config.bindings) createField(field);
-      roleSelect.addEventListener("change", () => { syncControls(); queueRender(); });
-      syncControls();
-      renderPreview();
+      }
+      updateScreenMetadata();
+      rebuildFields();
+      queueRender();
+    }
+
+    async function pollForSourceChanges() {
+      try {
+        await loadConfig();
+      } catch (error) {
+        statuses.left.textContent = error.message;
+        statuses.right.textContent = error.message;
+        statuses.left.classList.add("error");
+        statuses.right.classList.add("error");
+      }
+      revisionTimer = setTimeout(pollForSourceChanges, 700);
     }
 
     try {
-      await start();
+      await loadConfig();
+      centralSideSelect.addEventListener("change", () => {
+        rebuildFields();
+        queueRender();
+      });
+      displaySelect.addEventListener("change", () => {
+        updateScreenMetadata();
+        rebuildFields();
+        queueRender();
+      });
+      sourceModeSelect.addEventListener("change", () => {
+        updateScreenMetadata();
+        rebuildFields();
+        queueRender();
+      });
+      editSideSelect.addEventListener("change", rebuildFields);
+      inversionSelect.addEventListener("change", () => {
+        updateScreenMetadata();
+        queueRender();
+      });
+      pollForSourceChanges();
     } catch (error) {
-      status.textContent = error.message;
+      statuses.left.textContent = error.message;
+      statuses.right.textContent = error.message;
     }
   </script>
 </body>

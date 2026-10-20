@@ -9,8 +9,8 @@ These complete examples validate against the current widget and status-field cat
 - [three-column.svg](examples/three-column.svg) places battery, layer, and host status in narrow columns, with BLE profiles along the bottom.
 - [compact.svg](examples/compact.svg) emphasizes two battery readings and a large layer index, with host and split status in a footer.
 - [widget-example.svg](widget-example.svg) demonstrates individual widget types and conditional USB/BLE artwork.
-- [screens/default.svg](screens/default.svg), [screens/day.svg](screens/day.svg), and [screens/night.svg](screens/night.svg) are the themes used by the firmware.
-- [screens/oled-128x32.svg](screens/oled-128x32.svg) and [screens/oled-128x32-mirror.svg](screens/oled-128x32-mirror.svg) are compact 128 x 32 SSD1306 designs for left and right halves.
+- [screens/niceview-left.svg](screens/niceview-left.svg) and [screens/niceview-right.svg](screens/niceview-right.svg) are the left/right 160 x 68 Nice!View screens.
+- [screens/oled-left.svg](screens/oled-left.svg) and [screens/oled-right.svg](screens/oled-right.svg) are the left/right 128 x 32 SSD1306 screens.
 
 To inspect an example, run these commands from the module root:
 
@@ -24,10 +24,10 @@ The preview-only `--rotate-180` switch rotates a PNG for inspection. It does not
 
 ## Use an Example in Firmware
 
-Choose a side and generate its header. For example, to use the three-column screen as the left-side design:
+Generate a custom side's header after editing its SVG. For example, to replace the Nice!View left-side design:
 
 ```sh
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/examples/three-column.svg --output src/generated_day_screen.h
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/examples/three-column.svg --output src/generated_niceview_left_screen.h
 ```
 
 Enable the SVG screen and left-side design in that firmware image:
@@ -35,15 +35,16 @@ Enable the SVG screen and left-side design in that firmware image:
 ```conf
 CONFIG_ZMK_SVG=y
 CONFIG_ZMK_SVG_SCREEN=y
-CONFIG_ZMK_SVG_THEME_LEFT=y
 CONFIG_NICE_VIEW_WIDGET_STATUS=n
 ```
 
-The default `Automatic` selector chooses from the panel's Devicetree dimensions: 160 x 68 uses `src/generated_screen.h`; 128 x 32 uses `src/generated_oled_screen.h` on the left and `src/generated_oled_mirror_screen.h` on the right. Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right half to select the mirrored OLED artwork. The explicit `Left` and `Right` selectors are for custom 160 x 68 Nice!View artwork and load `src/generated_day_screen.h` and `src/generated_night_screen.h`. A panel/header mismatch fails the build.
+Display dimensions select Nice!View (160 x 68) or OLED (128 x 32) artwork. Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` in the right-half firmware; the left-half build leaves it unset. This selects the corresponding left/right SVG for either panel type. A panel/header dimension mismatch fails the build.
 
-To customize Nice!View, edit a 160 x 68 SVG and generate it to the left or right header. To customize OLED, use a 128 x 32 SVG and generate both the normal and mirrored sources to the two OLED headers. SVG artwork works in OLED mode; it is rasterized at the SVG's native resolution, never scaled. Keep each source SVG beside its generated header so it can be regenerated later.
+To customize a bundled screen, edit its SVG and run `generate-defaults` to regenerate all four headers. To generate one custom source, use `generate` with its matching output header. SVG artwork is rasterized at its native resolution, never scaled.
 
 ## Authoring Rules
+
+Raster assets can be referenced with SVG `href` or `xlink:href`; local paths are resolved relative to the source SVG during compilation and both static and live previews.
 
 1. Set a zero-origin `viewBox` to the target panel's exact dimensions, for example `viewBox="0 0 128 32"`. Use black and white fills for the monochrome panel.
 2. Put each logical widget inside an SVG `<g>` with a unique `id` and a `data-nvp-widget` type from `tools/widget_types.json`.
@@ -74,7 +75,7 @@ For example, an endpoint widget can use different icon shapes for USB and BLE:
 
 Edit the SVG paths or text inside a state group to change its appearance. The generator rasterizes each conditional element/group into a transparent I2 image; firmware creates a bounded LVGL image object and hides or shows it as the field changes. Rectangles and circles get crop bounds from their geometry. For paths, text, or groups, provide `data-nvp-bounds="x,y,width,height"` in the element's parent coordinate system; the generator applies inherited SVG transforms before cropping and positioning the asset. Keep dynamic groups small. Nested bindings are unsupported.
 
-Conditional text is useful for finite values that should be part of flipped artwork, such as layer numbers or endpoint labels. Add one `visible` text binding per supported value with matching `data-nvp-when` and explicit bounds. The day and night themes include layers 0–4 to match the Sofle keymap; update those variants if the keymap's layer set changes.
+Conditional text is useful for finite values that should be part of transformed artwork, such as layer numbers or endpoint labels. Add one `visible` text binding per supported value with matching `data-nvp-when` and explicit bounds. Update each side's variants if the keymap's layer set changes.
 
 To add a widget kind, add its slots to `tools/widget_types.json`. A slot declares compatible field IDs, renderers, and whether at least one bound part is required. The validator checks these declarations against the screen SVG and status field catalog.
 
@@ -86,12 +87,10 @@ To add a widget kind, add its slots to `tools/widget_types.json`. A slot declare
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py validate docs/widget-example.svg
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/widget-example.svg --values tools/sample_status.central.json --role central --output /tmp/widget-central.png
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/widget-example.svg --values tools/sample_status.peripheral.json --role peripheral --output /tmp/widget-peripheral.png
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/default.svg --output src/generated_screen.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/day.svg --output src/generated_day_screen.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/night.svg --output src/generated_night_screen.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/oled-128x32.svg --output src/generated_oled_screen.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/screens/oled-128x32-mirror.svg --output src/generated_oled_mirror_screen.h
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate-defaults
 ```
+
+`generate-defaults` rebuilds the checked-in left/right headers for both panel sizes. Run it after editing any bundled SVG before building firmware.
 
 Use `--invert` with the static preview command to inspect fully inverted output. The live preview has a polarity selector; start it with `--legacy-inverted` to match firmware using `CONFIG_NICE_VIEW_WIDGET_INVERTED=y`. `CONFIG_ZMK_SVG_WHITE_BACKGROUND=y` forces empty areas back to white while preserving legacy behavior when disabled.
 

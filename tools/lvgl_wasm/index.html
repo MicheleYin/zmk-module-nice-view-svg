@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LVGL XML Preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: #e9e8e2;
+        color: #202421;
+      }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+      main { width: min(900px, calc(100% - 32px)); display: grid; gap: 16px; }
+      header { display: flex; align-items: baseline; justify-content: space-between; }
+      h1 { margin: 0; font: 600 20px/1.2 ui-sans-serif, system-ui, sans-serif; }
+      #state { font-size: 12px; color: #4a554d; }
+      section { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 0.7fr); gap: 16px; }
+      textarea { box-sizing: border-box; width: 100%; min-height: 320px; resize: vertical; padding: 14px; border: 1px solid #8c928b; border-radius: 4px; background: #202421; color: #d9e3d9; font: 13px/1.55 ui-monospace, monospace; }
+      .preview { display: grid; align-content: start; gap: 8px; }
+      canvas { width: 100%; image-rendering: pixelated; background: #111; border: 1px solid #8c928b; }
+      #error { min-height: 1.5em; color: #a3342b; font-size: 12px; white-space: pre-wrap; }
+      @media (max-width: 640px) { section { grid-template-columns: 1fr; } textarea { min-height: 240px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>LVGL XML Preview</h1>
+        <span id="state">Starting runtime...</span>
+      </header>
+      <section>
+        <textarea id="xml" spellcheck="false" aria-label="LVGL component XML"></textarea>
+        <div class="preview">
+          <canvas id="screen" aria-label="Rendered LVGL screen"></canvas>
+          <output id="error"></output>
+        </div>
+      </section>
+    </main>
+    <script src="preview.js"></script>
+    <script type="module">
+      const source = document.querySelector('#xml');
+      const canvas = document.querySelector('#screen');
+      const state = document.querySelector('#state');
+      const error = document.querySelector('#error');
+      const starter = `<component>
+  <view extends="lv_obj" width="160" height="68" style_bg_color="0xffffff" style_pad_all="4">
+    <lv_label text="LVGL XML preview" x="5" y="5" />
+    <lv_label text="Rendered by LVGL in WebAssembly" x="5" y="28" />
+  </view>
+</component>`;
+      source.value = starter;
+
+      try {
+        const module = await CreateLVGLModule();
+        const width = module._get_width();
+        const height = module._get_height();
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d', { alpha: false });
+        const input = new TextEncoder();
+        let timer;
+
+        const render = () => {
+          const xml = input.encode(`${source.value}\0`);
+          const pointer = module._malloc(xml.length);
+          module.HEAPU8.set(xml, pointer);
+          const succeeded = module._render_xml(pointer);
+          module._free(pointer);
+          if (!succeeded) {
+            error.textContent = 'LVGL could not load this component. Last successful render is retained.';
+            return;
+          }
+          const pixels = module.HEAPU8.subarray(module._get_framebuffer(), module._get_framebuffer() + width * height * 4);
+          context.putImageData(new ImageData(new Uint8ClampedArray(pixels), width, height), 0, 0);
+          error.textContent = '';
+        };
+
+        source.addEventListener('input', () => {
+          clearTimeout(timer);
+          timer = setTimeout(render, 180);
+        });
+        state.textContent = `${width} × ${height} · LVGL 9 · XML enabled`;
+        render();
+      } catch (cause) {
+        state.textContent = 'Runtime failed to start';
+        error.textContent = cause.message;
+      }
+    </script>
+  </body>
+</html>

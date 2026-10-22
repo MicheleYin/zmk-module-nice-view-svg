@@ -1,0 +1,26 @@
+<component>
+  <view extends="lv_obj" width="160" height="68"
+        style_bg_color="0xffffff" style_pad_all="2" scrollable="false">
+    <lv_obj x="2" y="2" width="156" height="18" flex_flow="row"
+            style_pad_all="1" style_bg_opa="0" style_border_width="0">
+      <lv_label text="BATTERY" width="52" />
+      <zmk_status_text field="battery.left.percent" format="percent" />
+      <zmk_status_bar field="battery.left.percent" x="78" y="7"
+                      width="70" height="5" />
+    </lv_obj>
+    <lv_obj x="2" y="24" width="156" height="18" flex_flow="row"
+            style_pad_all="1" style_bg_opa="0" style_border_width="0">
+      <lv_label text="LAYER" width="52" />
+      <zmk_status_text field="layer.index" />
+      <zmk_status_when field="output.selected" test="equals" value="ble">
+        <lv_label text="BLE" align="right_mid" />
+      </zmk_status_when>
+    </lv_obj>
+    <lv_obj x="2" y="46" width="156" height="18" flex_flow="row"
+            style_pad_all="1" style_bg_opa="0" style_border_width="0">
+      <lv_label text="SPLIT" width="52" />
+      <zmk_status_text field="split.connected" />
+      <zmk_status_text field="display.half" align="right_mid" />
+    </lv_obj>
+  </view>
+</component>

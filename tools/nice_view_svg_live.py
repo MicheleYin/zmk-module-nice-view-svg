@@ -194,7 +194,6 @@ def build_live_preview_config(
         "title": "Two-Sided SVG Preview",
         "initialCentralSide": central_side,
         "initialDisplay": "niceview" if "niceview" in displays else next(iter(displays)),
-        "initialSourceMode": "distinct",
         "legacyInverted": legacy_inverted,
         "initialInversionMode": "legacy",
         "displays": displays,
@@ -273,7 +272,6 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             request = json.loads(self.rfile.read(length))
             display = request.get("display")
             side = request.get("side")
-            source_mode = request.get("sourceMode")
             central_side = request.get(
                 "centralSide", self.server.preview_config["initialCentralSide"]
             )
@@ -282,20 +280,18 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             if (
                 display not in self.server.sources
                 or side not in {"left", "right"}
-                or source_mode not in {"shared", "distinct"}
                 or central_side not in {"left", "right"}
                 or not isinstance(values, dict)
             ):
                 raise ValueError(
-                    "request needs a display, side, source mode, central side, and values"
+                    "request needs a display, side, central side, and values"
                 )
             if inversion_mode not in {"legacy", "white-background"}:
                 raise ValueError("unknown inversion mode")
             role = "central" if side == central_side else "peripheral"
-            source_side = side if source_mode == "distinct" else "left"
-            svg_path = self.server.sources[display][source_side]
+            svg_path = self.server.sources[display][side]
             svg = preview_svg_text(
-                self.server.svg_texts[display][source_side],
+                self.server.svg_texts[display][side],
                 self.server.fields,
                 values,
                 role,
@@ -321,8 +317,15 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("svg", type=Path, nargs="?", help="optional SVG to use on both sides")
-    parser.add_argument("--right-svg", type=Path, help="optional distinct right-side SVG")
+    parser.add_argument(
+        "svg",
+        type=Path,
+        nargs="?",
+        help="left-side SVG; a matching right-side sibling is used when present",
+    )
+    parser.add_argument(
+        "--right-svg", type=Path, help="explicit right-side SVG, overriding sibling inference"
+    )
     parser.add_argument("--panel", choices=("niceview", "oled"))
     parser.add_argument("--central-side", choices=("left", "right"), default="left")
     parser.add_argument(

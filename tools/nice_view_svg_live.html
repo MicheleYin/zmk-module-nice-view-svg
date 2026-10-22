@@ -178,12 +178,6 @@
             <option value="oled">OLED · 128 × 32</option>
           </select>
         </label>
-        <label>Artwork
-          <select id="source-mode">
-            <option value="distinct">Different left and right</option>
-            <option value="shared">Same on both sides</option>
-          </select>
-        </label>
         <label>Edit values for
           <select id="edit-side">
             <option value="left">Left side</option>
@@ -232,7 +226,6 @@
   <script type="module">
     const centralSideSelect = document.querySelector("#central-side");
     const displaySelect = document.querySelector("#display");
-    const sourceModeSelect = document.querySelector("#source-mode");
     const editSideSelect = document.querySelector("#edit-side");
     const inversionSelect = document.querySelector("#inversion");
     const fieldsRoot = document.querySelector("#fields");
@@ -503,8 +496,7 @@
     function rebuildFields() {
       fieldsRoot.replaceChildren();
       controlState.clear();
-      const sourceSide = sourceModeSelect.value === "shared" ? "left" : editSideSelect.value;
-      const bindings = currentDisplayConfig().screens[sourceSide].bindings;
+      const bindings = currentDisplayConfig().screens[editSideSelect.value].bindings;
       const seen = new Set();
       for (const binding of bindings) {
         if (!seen.has(binding.id)) {
@@ -537,7 +529,6 @@
             display: displaySelect.value,
             side,
             centralSide: centralSideSelect.value,
-            sourceMode: sourceModeSelect.value,
             values: currentDisplayConfig().values[role],
             inversionMode: inversionSelect.value,
           }),
@@ -576,7 +567,7 @@
         updatePreviewOrientation(side);
       }
       document.querySelector("#source").textContent =
-        `${displaySelect.options[displaySelect.selectedIndex].text} · ${sourceModeSelect.value === "shared" ? "shared artwork" : "separate artwork"}`;
+        `${displaySelect.options[displaySelect.selectedIndex].text} · L: ${display.screens.left.title} · R: ${display.screens.right.title}`;
       for (const status of Object.values(statuses)) {
         status.classList.remove("error");
       }
@@ -617,7 +608,6 @@
       if (firstLoad) {
         centralSideSelect.value = config.initialCentralSide;
         displaySelect.value = config.initialDisplay;
-        sourceModeSelect.value = config.initialSourceMode;
         inversionSelect.value = config.initialInversionMode;
       }
       document.title = `${config.title} · Nice!view Live Preview`;
@@ -650,11 +640,6 @@
         queueRender();
       });
       displaySelect.addEventListener("change", () => {
-        updateScreenMetadata();
-        rebuildFields();
-        queueRender();
-      });
-      sourceModeSelect.addEventListener("change", () => {
         updateScreenMetadata();
         rebuildFields();
         queueRender();

@@ -25,7 +25,10 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.central.json --role central --output /tmp/nice_view_plus_central.png
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py preview docs/nice-view-plus-preview.svg --values tools/sample_status.peripheral.json --role peripheral --output /tmp/nice_view_plus_peripheral.png
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate docs/nice-view-plus-preview.svg --output /tmp/nice_view_plus_svg.h
-uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg_live.py docs/screens/niceview-left.svg
+# Live preview with the same image on both sides
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg_live.py docs/screens/niceview-left.svg --right-svg docs/screens/niceview-left.svg
+# Live preview with different left and right images
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg_live.py docs/screens/niceview-left.svg --right-svg docs/screens/niceview-right.svg
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_svg.py generate-defaults
 uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_svg
 ```

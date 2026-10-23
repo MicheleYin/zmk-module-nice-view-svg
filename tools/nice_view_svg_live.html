@@ -51,8 +51,26 @@
       padding: clamp(18px, 5vw, 64px);
       border-right: 1px solid #cbd4ce;
     }
-    .screen {
+    .screens {
+      display: grid;
+      gap: 20px;
       width: min(100%, 800px);
+      justify-items: stretch;
+    }
+    .screens.both {
+      grid-template-columns: 1fr 1fr;
+      width: min(100%, 1100px);
+    }
+    .screen-panel { display: grid; gap: 8px; min-width: 0; }
+    .screen-label {
+      color: #53635c;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .screen {
+      width: 100%;
       aspect-ratio: 160 / 68;
       display: grid;
       place-items: center;
@@ -61,16 +79,19 @@
       background: #fff;
       box-shadow: 0 12px 28px #18242120;
     }
-    #preview { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    .preview { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
     .screen-meta {
       display: flex;
       justify-content: space-between;
       gap: 16px;
-      width: min(100%, 800px);
+      width: min(100%, 1100px);
       color: #53635c;
       font-size: 11px;
     }
     #status { color: #45632a; text-align: right; }
+    @media (max-width: 900px) {
+      .screens.both { grid-template-columns: 1fr; width: min(100%, 800px); }
+    }
     aside { min-width: 0; background: #f8faf8; }
     .controls-heading {
       position: sticky;
@@ -129,6 +150,7 @@
         <select id="role">
           <option value="central">Central</option>
           <option value="peripheral">Peripheral</option>
+          <option value="both">Both</option>
         </select>
       </label>
       <label class="role-control">Polarity
@@ -141,7 +163,16 @@
   </header>
   <main>
     <section class="stage" aria-label="Raster preview">
-      <div class="screen"><img id="preview" alt="Live rasterized Nice!view screen"></div>
+      <div class="screens" id="screens">
+        <div class="screen-panel" data-role="central">
+          <div class="screen-label">Central</div>
+          <div class="screen"><img class="preview" alt="Central Nice!view preview"></div>
+        </div>
+        <div class="screen-panel" data-role="peripheral" hidden>
+          <div class="screen-label">Peripheral</div>
+          <div class="screen"><img class="preview" alt="Peripheral Nice!view preview"></div>
+        </div>
+      </div>
       <div class="screen-meta"><span id="dimensions"></span><span id="status" aria-live="polite">Loading</span></div>
     </section>
     <aside>
@@ -153,13 +184,28 @@
     const roleSelect = document.querySelector("#role");
     const inversionSelect = document.querySelector("#inversion");
     const fieldsRoot = document.querySelector("#fields");
-    const previewImage = document.querySelector("#preview");
+    const screensRoot = document.querySelector("#screens");
     const status = document.querySelector("#status");
     const controlState = new Map();
+    const activeUrls = new Map();
     let config;
-    let activeUrl;
     let requestController;
     let renderTimer;
+
+    function selectedRoles() {
+      return roleSelect.value === "both" ? ["central", "peripheral"] : [roleSelect.value];
+    }
+
+    function primaryRole() {
+      return roleSelect.value === "both" ? "central" : roleSelect.value;
+    }
+
+    function rolesForField(field) {
+      if (roleSelect.value === "both") {
+        return field.roles.filter(role => role === "central" || role === "peripheral");
+      }
+      return field.roles.includes(roleSelect.value) ? [roleSelect.value] : [];
+    }
 
     function createEnumControl(field, editor, state) {
       const select = document.createElement("select");
@@ -254,6 +300,19 @@
       state.write = value => { input.value = value ?? ""; };
     }
 
+    function fieldDescriptionText(field) {
+      if (!field.role_descriptions) return "";
+      if (roleSelect.value !== "both") {
+        return field.role_descriptions[roleSelect.value] ?? "";
+      }
+      const parts = [];
+      for (const role of field.roles) {
+        const text = field.role_descriptions[role];
+        if (text) parts.push(`${role}: ${text}`);
+      }
+      return parts.join(" · ");
+    }
+
     function createField(field) {
       const row = document.createElement("section");
       row.className = "field";
@@ -270,7 +329,7 @@
       if (field.role_descriptions) {
         description = document.createElement("div");
         description.className = "field-description";
-        description.textContent = field.role_descriptions[roleSelect.value] ?? "";
+        description.textContent = fieldDescriptionText(field);
       }
       const editor = document.createElement("div");
       if (description) row.append(heading, description, editor);
@@ -308,20 +367,44 @@
     }
 
     function saveCurrentValue(state) {
-      config.values[roleSelect.value][state.field.id] = state.read();
+      const value = state.read();
+      for (const role of rolesForField(state.field)) {
+        config.values[role][state.field.id] = value;
+      }
     }
 
     function syncControls() {
-      const role = roleSelect.value;
       for (const state of controlState.values()) {
-        const available = state.field.roles.includes(role);
+        const roles = rolesForField(state.field);
+        const available = roles.length > 0;
         state.row.classList.toggle("disabled", !available);
         for (const input of state.controls) input.disabled = !available;
         if (state.description) {
-          state.description.textContent = state.field.role_descriptions[role] ?? "";
+          state.description.textContent = fieldDescriptionText(state.field);
         }
-        state.write(config.values[role][state.field.id]);
+        const sourceRole = roles.includes("central")
+          ? "central"
+          : (roles[0] ?? primaryRole());
+        state.write(config.values[sourceRole][state.field.id]);
       }
+      updateScreenLayout();
+    }
+
+    function updateScreenLayout() {
+      const both = roleSelect.value === "both";
+      screensRoot.classList.toggle("both", both);
+      for (const panel of screensRoot.querySelectorAll(".screen-panel")) {
+        const role = panel.dataset.role;
+        panel.hidden = !(both || role === roleSelect.value);
+      }
+    }
+
+    function updateScreenPolarity() {
+      const inverted = inversionSelect.value === "legacy" && config.legacyInverted;
+      for (const screen of screensRoot.querySelectorAll(".screen")) {
+        screen.style.background = inverted ? "#000" : "#fff";
+      }
+      queueRender();
     }
 
     function queueRender() {
@@ -330,25 +413,40 @@
       renderTimer = setTimeout(renderPreview, 90);
     }
 
+    async function renderRole(role, signal) {
+      const response = await fetch("/render", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role,
+          values: config.values[role],
+          inversionMode: inversionSelect.value,
+        }),
+        signal,
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return URL.createObjectURL(await response.blob());
+    }
+
     async function renderPreview() {
       requestController?.abort();
       requestController = new AbortController();
+      const roles = selectedRoles();
       try {
-        const response = await fetch("/render", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            role: roleSelect.value,
-            values: config.values[roleSelect.value],
-            inversionMode: inversionSelect.value,
-          }),
-          signal: requestController.signal,
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const nextUrl = URL.createObjectURL(await response.blob());
-        previewImage.src = nextUrl;
-        if (activeUrl) URL.revokeObjectURL(activeUrl);
-        activeUrl = nextUrl;
+        const urls = await Promise.all(
+          roles.map(role => renderRole(role, requestController.signal)),
+        );
+        for (let index = 0; index < roles.length; index++) {
+          const role = roles[index];
+          const panel = screensRoot.querySelector(`.screen-panel[data-role="${role}"]`);
+          const image = panel.querySelector(".preview");
+          image.src = urls[index];
+          image.width = config.width;
+          image.height = config.height;
+          const previous = activeUrls.get(role);
+          if (previous) URL.revokeObjectURL(previous);
+          activeUrls.set(role, urls[index]);
+        }
         status.textContent = "Ready";
       } catch (error) {
         if (error.name !== "AbortError") status.textContent = error.message;
@@ -361,21 +459,14 @@
       config = await response.json();
       document.title = `${config.title} · Nice!view Live Preview`;
       document.querySelector("#source").textContent = config.title;
-      const screen = document.querySelector(".screen");
-      screen.style.aspectRatio = `${config.width} / ${config.height}`;
-      previewImage.width = config.width;
-      previewImage.height = config.height;
+      for (const screen of screensRoot.querySelectorAll(".screen")) {
+        screen.style.aspectRatio = `${config.width} / ${config.height}`;
+      }
       document.querySelector("#dimensions").textContent =
         `${config.width} × ${config.height} px · 1-bit monochrome`;
       inversionSelect.value = config.initialInversionMode;
-      const updateScreenPolarity = () => {
-        screen.style.background = inversionSelect.value === "legacy" && config.legacyInverted
-          ? "#000"
-          : "#fff";
-        queueRender();
-      };
       inversionSelect.addEventListener("change", updateScreenPolarity);
-      screen.style.background = config.legacyInverted ? "#000" : "#fff";
+      updateScreenPolarity();
       roleSelect.value = config.initialRole;
       for (const field of config.bindings) createField(field);
       roleSelect.addEventListener("change", () => { syncControls(); queueRender(); });

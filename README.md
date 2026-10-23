@@ -16,6 +16,24 @@ The split-link indicator shows connected or disconnected state on both halves. O
 
 The pixel positions and widget bounds are listed in [the widget restyle proposal](docs/widget-restyle-proposal.md).
 
+## LVGL XML tooling
+
+Component XML screens (`docs/ui/`) validate against the same status field catalog as SVG,
+preview with expanded LVGL widgets (Pillow or optional WebAssembly LVGL), and generate
+committed `status_screen_gen.c` / `.h` for firmware when `CONFIG_ZMK_SVG_LVGL_XML=y`.
+See [LVGL XML authoring](docs/widget-authoring-xml.md).
+
+```sh
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py generate docs/ui/screens/status_screen.xml --output-dir src/generated_xml/default
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py preview docs/ui/screens/status_screen.xml --values tools/sample_status.central.json --role central --output /tmp/status_xml.png
+uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml_live.py docs/ui/screens/status_screen.xml
+uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_xml
+```
+
+Live preview reuses the SVG live HTML UI and `/config` + `/render` API. SVG tooling below
+remains available when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
+
 ## SVG tooling
 
 The validator, previewer, and bitmap-header generator use `uv` to provide Python dependencies in an isolated cached environment; Pillow is not installed into your selected Python. `rsvg-convert` must be available on `PATH` for rasterization.

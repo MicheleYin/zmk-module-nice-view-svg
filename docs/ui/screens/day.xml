@@ -1,0 +1,42 @@
+<!-- Day / left theme from docs/examples/shan.svg art + compact status overlay. -->
+<component>
+  <view extends="lv_obj" width="160" height="68"
+        style_bg_color="0xffffff" scrollable="false">
+    <lv_image src="../assets/day_bg.png" x="0" y="0" />
+
+    <zmk_status_bar field="battery.left.percent" x="14" y="8" width="18" height="4" />
+    <zmk_status_when field="battery.left.charge" test="equals" value="charging">
+      <lv_label text="+" x="13" y="5" />
+    </zmk_status_when>
+    <zmk_status_text field="battery.left.percent" format="percent" x="4" y="24" font_size="10" />
+
+    <zmk_status_bar field="battery.right.percent" x="14" y="30" width="18" height="4" />
+    <zmk_status_when field="battery.right.charge" test="equals" value="charging">
+      <lv_label text="+" x="13" y="27" />
+    </zmk_status_when>
+    <zmk_status_text field="battery.right.percent" format="percent" x="4" y="46" font_size="10" />
+
+    <zmk_status_text field="layer.index" x="140" y="28" font_size="16" />
+
+    <zmk_status_when field="ble.active_profile" test="equals" value="0">
+      <lv_label text="1" x="8" y="52" />
+    </zmk_status_when>
+    <zmk_status_when field="ble.active_profile" test="equals" value="1">
+      <lv_label text="2" x="8" y="52" />
+    </zmk_status_when>
+    <zmk_status_when field="ble.active_profile" test="equals" value="2">
+      <lv_label text="3" x="8" y="52" />
+    </zmk_status_when>
+    <zmk_status_when field="ble.active_profile" test="equals" value="3">
+      <lv_label text="4" x="8" y="52" />
+    </zmk_status_when>
+    <zmk_status_when field="ble.active_profile" test="equals" value="4">
+      <lv_label text="5" x="8" y="52" />
+    </zmk_status_when>
+
+    <zmk_status_text field="output.selected" format="output-label" x="40" y="64" font_size="10" />
+    <zmk_status_when field="split.connected" test="equals" value="true">
+      <lv_label text="SPLIT" x="100" y="54" />
+    </zmk_status_when>
+  </view>
+</component>

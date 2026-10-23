@@ -1,5 +1,9 @@
 # Screen and Widget Authoring
 
+For LVGL component XML (recommended for new screens), see
+[LVGL XML authoring](widget-authoring-xml.md). The SVG workflow below remains
+supported when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
+
 ZMK SVG screens are authored at the panel's native resolution. Each SVG `viewBox` defines its pixel canvas; existing Nice!View designs use 160 x 68, while the bundled OLED design uses 128 x 32. The SVG contains static artwork and marks dynamic fields with `data-nvp-*` attributes. Host tools rasterize the artwork and generate LVGL bindings; firmware does not parse SVG or scale it to fit another panel.
 
 ## Ready-to-Use Screens

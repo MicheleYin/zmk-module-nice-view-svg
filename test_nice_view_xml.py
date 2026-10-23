@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from tools.nice_view_xml import load_catalog, validate_screen_text
+from tools.nice_view_xml_codegen import write_generated
 
 
 FIELDS = load_catalog()
@@ -95,6 +96,54 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         self.assertTrue(
             any("unsupported format 'uppercase'" in error for error in errors)
         )
+
+    def test_generate_writes_binding_table(self):
+        import tempfile
+
+        xml = make_screen(
+            '<zmk_status_text field="layer.index" x="4" y="4"/>'
+            '<zmk_status_bar field="battery.central.percent" x="10" y="20" '
+            'width="40" height="4"/>'
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir)
+            screen_path = output_dir / "screen.xml"
+            screen_path.write_text(xml)
+            header_path, source_path = write_generated(screen_path, output_dir)
+            header = header_path.read_text()
+            source = source_path.read_text()
+
+        self.assertIn("ZMK_NVP_SVG_BINDING_COUNT 2", header)
+        self.assertIn("zmk_nvp_svg_bindings", header)
+        self.assertIn("zmk_nvp_xml_layout_create", source)
+
+    def test_ui_screens_validate_and_embed_background(self):
+        from tools.nice_view_xml import validate_screen
+
+        screens = Path(__file__).parent / "docs" / "ui" / "screens"
+        for name in (
+            "status_screen.xml",
+            "day.xml",
+            "night.xml",
+            "oled-128x32.xml",
+            "oled-128x32-mirror.xml",
+        ):
+            path = screens / name
+            errors = validate_screen(path)
+            self.assertEqual(errors, [], msg=f"{name}: {errors}")
+
+        generated = (
+            Path(__file__).parent
+            / "src"
+            / "generated_xml"
+            / "default"
+            / "status_screen_gen.c"
+        )
+        header = generated.with_suffix(".h").read_text()
+        source = generated.read_text()
+        self.assertIn("ZMK_NVP_XML_HAS_BACKGROUND 1", header)
+        self.assertIn("zmk_nvp_svg_background", source)
+        self.assertIn("lv_image_create", source)
 
 
 if __name__ == "__main__":

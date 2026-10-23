@@ -1,0 +1,10 @@
+<!--
+  Shared asset notes for the ZMK LVGL XML project.
+
+  Background PNGs live in docs/ui/assets/ and are referenced from screens with:
+    <lv_image src="../assets/<name>_bg.png" x="0" y="0" />
+
+  generate embeds each PNG as an I1 LVGL image descriptor in status_screen_gen.c.
+  Fonts use the module's selected Montserrat / unscii LVGL fonts at runtime.
+-->
+<globals/>

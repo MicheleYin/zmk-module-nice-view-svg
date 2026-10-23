@@ -1,0 +1,26 @@
+<!-- Migrated from docs/screens/oled-128x32-mirror.svg -->
+<component>
+  <view extends="lv_obj" width="128" height="32"
+        style_bg_color="0xffffff" scrollable="false">
+    <lv_image src="../assets/oled_mirror_bg.png" x="0" y="0" />
+
+    <lv_label text="L" x="2" y="0" />
+    <zmk_status_bar field="battery.left.percent" x="14" y="4" width="24" height="4" />
+    <zmk_status_text field="battery.left.percent" format="percent" x="44" y="10" font_size="12" />
+
+    <lv_label text="R" x="2" y="12" />
+    <zmk_status_bar field="battery.right.percent" x="14" y="16" width="24" height="4" />
+    <zmk_status_text field="battery.right.percent" format="percent" x="44" y="22" font_size="12" />
+
+    <zmk_status_text field="output.selected" format="output-label" x="76" y="10" font_size="12" />
+    <lv_label text="LAYER" x="76" y="12" />
+    <zmk_status_text field="layer.index" x="116" y="23" font_size="12" />
+
+    <zmk_status_when field="display.half" test="equals" value="left">
+      <lv_label text="L" x="100" y="2" />
+    </zmk_status_when>
+    <zmk_status_when field="display.half" test="equals" value="right">
+      <lv_label text="R" x="100" y="2" />
+    </zmk_status_when>
+  </view>
+</component>

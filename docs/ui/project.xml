@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="zmk_nvp_ui" width="160" height="68">
+  <screens path="screens" />
+</project>

@@ -54,6 +54,23 @@ config ZMK_SVG_SCREEN
         Set this when the central firmware belongs to the physical right side.
         This is separate from whether the current firmware runs on the central.
 
+config ZMK_SVG_LVGL_XML
+    bool "Use LVGL XML generated status screen (no SVG bitmap)"
+    depends on ZMK_SVG_SCREEN
+    default n
+    help
+      Use status screens generated from LVGL component XML under docs/ui/.
+      Regenerate src/generated_xml/*/status_screen_gen.c and .h with
+      tools/nice_view_xml.py generate when XML sources change.
+
+config ZMK_SVG_LVGL_XML_OLED
+    bool "Use 128x32 LVGL XML generated sources"
+    depends on ZMK_SVG_LVGL_XML
+    default n
+    help
+      Link the 128x32 generated screen for SSD1306 OLED shields. Enable this
+      on 128x32 builds when ZMK_SVG_THEME_AUTO is selected.
+
 config ZMK_SVG_RIGHT_HALF
     bool "This display is on the right half"
     depends on ZMK_SVG && ZMK_SPLIT

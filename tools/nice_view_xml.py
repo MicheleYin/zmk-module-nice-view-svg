@@ -1,4 +1,4 @@
-"""Validate LVGL component XML and its typed ZMK status widgets."""
+"""Validate, preview, and generate LVGL component XML for ZMK status screens."""
 
 import argparse
 import json
@@ -9,7 +9,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+if __package__:
+    from tools.nice_view_xml_codegen import MAX_DYNAMIC_BINDINGS, write_generated
+else:
+    from nice_view_xml_codegen import MAX_DYNAMIC_BINDINGS, write_generated
+
 TOOLS_DIR = Path(__file__).parent
+ROLES = frozenset({"central", "peripheral"})
 STATUS_FIELDS_PATH = TOOLS_DIR / "status_fields.json"
 SUPPORTED_DIMENSIONS = {(160, 68), (128, 32)}
 LVGL_WIDGET_ATTRIBUTES = frozenset(
@@ -36,7 +42,8 @@ class WidgetSpec:
 
 WIDGETS: dict[str, WidgetSpec] = {
     "zmk_status_text": WidgetSpec(
-        None, frozenset({"field", "format", "role", "text", "long_mode"})
+        None,
+        frozenset({"field", "format", "role", "text", "long_mode", "font_size", "anchor"}),
     ),
     "zmk_status_bar": WidgetSpec(
         frozenset({"integer", "percent"}),
@@ -44,7 +51,7 @@ WIDGETS: dict[str, WidgetSpec] = {
     ),
     "zmk_status_arc": WidgetSpec(
         frozenset({"integer", "percent"}),
-        frozenset({"field", "role", "range_min", "range_max"}),
+        frozenset({"field", "role", "range_min", "range_max", "radius", "ring_width"}),
     ),
     "zmk_status_when": WidgetSpec(
         frozenset({"boolean", "enum", "integer", "percent", "string", "bitmask"}),
@@ -181,7 +188,7 @@ def _validate_widget(
 
     if element.tag == "zmk_status_text":
         text_format = element.get("format", "text")
-        if text_format not in {"text", "percent"}:
+        if text_format not in {"text", "percent", "output-label", "profile-number"}:
             errors.append(f"<zmk_status_text> has unsupported format '{text_format}'")
         elif text_format == "percent" and field["type"] != "percent":
             errors.append(
@@ -210,39 +217,122 @@ def validate_screen_text(
         return ["component must contain exactly one direct <view>"]
 
     errors = _validate_dimensions(views[0], expected_dimensions)
+    binding_count = 0
+    image_count = 0
     for element in root.iter():
+        if element.tag in WIDGETS:
+            binding_count += 1
+        if element.tag == "lv_image":
+            image_count += 1
+            src = element.get("src")
+            if not src:
+                errors.append("<lv_image> needs a src attribute")
         errors.extend(_validate_widget(element, fields))
+    if image_count > 1:
+        errors.append("only one <lv_image> background is supported per screen")
+    if binding_count > MAX_DYNAMIC_BINDINGS:
+        errors.append(
+            f"screen has {binding_count} dynamic bindings; budget is {MAX_DYNAMIC_BINDINGS}"
+        )
     return errors
 
 
 def validate_screen(
     path: Path, expected_dimensions: tuple[int, int] | None = None
 ) -> list[str]:
-    return validate_screen_text(path.read_text(), load_catalog(), expected_dimensions)
+    errors = validate_screen_text(path.read_text(), load_catalog(), expected_dimensions)
+    # Resolve image paths relative to the screen file when validating on disk.
+    try:
+        root = ET.fromstring(path.read_text())
+    except ET.ParseError:
+        return errors
+    for element in root.iter("lv_image"):
+        src = element.get("src")
+        if not src:
+            continue
+        candidates = [(path.parent / src).resolve(), (Path.cwd() / src).resolve()]
+        if not any(candidate.exists() for candidate in candidates):
+            errors.append(f"<lv_image> src not found: {src}")
+    return errors
 
 
-def main() -> int:
+def generate(screen: Path, output_dir: Path) -> None:
+    errors = validate_screen(screen)
+    if errors:
+        raise ValueError("\n".join(errors))
+    header_path, source_path = write_generated(screen, output_dir)
+    print(f"Generated {header_path}")
+    print(f"Generated {source_path}")
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("screen", type=Path, help="LVGL component XML file")
-    parser.add_argument("--width", type=int)
-    parser.add_argument("--height", type=int)
-    args = parser.parse_args()
-    if (args.width is None) != (args.height is None):
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    validate_parser = subparsers.add_parser("validate", help="validate component XML")
+    validate_parser.add_argument("screen", type=Path)
+    validate_parser.add_argument("--width", type=int)
+    validate_parser.add_argument("--height", type=int)
+
+    generate_parser = subparsers.add_parser(
+        "generate", help="generate status_screen_gen.c and .h"
+    )
+    generate_parser.add_argument("screen", type=Path)
+    generate_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        required=True,
+        help="directory for status_screen_gen.c/h",
+    )
+
+    preview_parser = subparsers.add_parser(
+        "preview", help="render a PNG using expanded LVGL XML preview data"
+    )
+    preview_parser.add_argument("screen", type=Path)
+    preview_parser.add_argument("--values", type=Path, required=True)
+    preview_parser.add_argument(
+        "--role", choices=["central", "peripheral"], required=True
+    )
+    preview_parser.add_argument("--output", type=Path, required=True)
+
+    args = parser.parse_args(argv)
+    if getattr(args, "width", None) is not None and getattr(args, "height", None) is None:
         parser.error("--width and --height must be provided together")
 
-    expected_dimensions = (
-        (args.width, args.height) if args.width is not None else None
-    )
     try:
-        errors = validate_screen(args.screen, expected_dimensions)
-    except (OSError, ValueError) as error:
+        if args.command == "validate":
+            expected_dimensions = (
+                (args.width, args.height)
+                if getattr(args, "width", None) is not None
+                else None
+            )
+            errors = validate_screen(args.screen, expected_dimensions)
+            if errors:
+                print("\n".join(errors), file=sys.stderr)
+                return 1
+            print(f"[OK] {args.screen}")
+            return 0
+        if args.command == "generate":
+            generate(args.screen, args.output_dir)
+            return 0
+        if __package__:
+            from tools.nice_view_xml_preview import preview_png, preview_xml_text
+        else:
+            from nice_view_xml_preview import preview_png, preview_xml_text
+
+        values = json.loads(args.values.read_text()).get("values", {})
+        xml = preview_xml_text(
+            args.screen.read_text(),
+            load_catalog(),
+            values,
+            args.role,
+        )
+        preview_png(xml, args.output, args.screen)
+        print(f"Rendered {args.output}")
+        return 0
+    except (OSError, TypeError, ValueError) as error:
         print(error, file=sys.stderr)
         return 1
-    if errors:
-        print("\n".join(errors), file=sys.stderr)
-        return 1
-    print(f"[OK] {args.screen}")
-    return 0
 
 
 if __name__ == "__main__":

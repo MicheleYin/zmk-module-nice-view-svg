@@ -1,8 +1,19 @@
-# ZMK SVG
+# ZMK SVG / LVGL XML
 
 [![Build](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml)
 
-ZMK SVG is a ZMK module for status screens on Nice!View displays and 128 x 32 SSD1306 OLEDs. It provides native LVGL layouts for 160 x 68 and 128 x 32 panels, plus authored SVG screens that must match the panel's native resolution. WPM is not enabled by this module, but remains in the optional status packet if another configuration enables it.
+Status screens for Nice!View (160×68) and 128×32 SSD1306 OLEDs. You can author
+screens as **SVG** (Inkscape + `data-nvp-*`, default) or **LVGL component XML**
+(`CONFIG_ZMK_SVG_LVGL_XML=y`) with optional offline SVG/PNG decoration. Both
+paths generate LVGL bitmaps/bindings; the keyboard never parses SVG at runtime.
+
+- SVG authoring: [docs/widget-authoring.md](docs/widget-authoring.md)
+- XML authoring: [docs/widget-authoring-xml.md](docs/widget-authoring-xml.md)
+- Pipeline comparison / gaps: [docs/xml-vs-svg.md](docs/xml-vs-svg.md)
+- Agent / contributor commands: [AGENTS.md](AGENTS.md)
+
+WPM is not enabled by this module, but remains in the optional status packet if
+another configuration enables it.
 
 ## Screen preview
 
@@ -18,10 +29,10 @@ The pixel positions and widget bounds are listed in [the widget restyle proposal
 
 ## LVGL XML tooling
 
-Component XML screens (`docs/ui/`) validate against the same status field catalog as SVG,
-preview with expanded LVGL widgets (Pillow or optional WebAssembly LVGL), and generate
-committed `status_screen_gen.c` / `.h` for firmware when `CONFIG_ZMK_SVG_LVGL_XML=y`.
-See [LVGL XML authoring](docs/widget-authoring-xml.md).
+Component XML under `docs/ui/` uses the same `tools/status_fields.json` catalog as SVG.
+Validate / generate / live-preview, then enable `CONFIG_ZMK_SVG_LVGL_XML=y` in firmware.
+Decorative art can be PNG or SVG files referenced with `<lv_image src="…">` (rasterized
+offline into I1/I2). Details: [LVGL XML authoring](docs/widget-authoring-xml.md).
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml
@@ -31,8 +42,23 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/nice_v
 uv run --isolated --with-requirements tools/requirements.txt python -m unittest test_nice_view_xml
 ```
 
-Live preview reuses the SVG live HTML UI and `/config` + `/render` API. SVG tooling below
-remains available when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
+| Screen | Generate `--output-dir` |
+| --- | --- |
+| `docs/ui/screens/status_screen.xml` | `src/generated_xml/default` |
+| `docs/ui/screens/day.xml` | `src/generated_xml/day` |
+| `docs/ui/screens/night.xml` | `src/generated_xml/night` |
+| `docs/ui/screens/oled-128x32.xml` | `src/generated_xml/oled` |
+| `docs/ui/screens/oled-128x32-mirror.xml` | `src/generated_xml/oled_mirror` |
+
+```conf
+CONFIG_ZMK_SVG=y
+CONFIG_ZMK_SVG_SCREEN=y
+CONFIG_ZMK_SVG_LVGL_XML=y
+# OLED 128x32 AUTO: also CONFIG_ZMK_SVG_LVGL_XML_OLED=y
+```
+
+Live preview reuses the SVG live HTML UI (`/config`, `/render`). SVG tooling below remains
+available when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
 
 ## SVG tooling
 

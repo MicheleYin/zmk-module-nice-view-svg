@@ -1,42 +1,118 @@
 # ZMK Module Development Instructions
 
-This repository contains a ZMK module.
+This repository is the **ZMK SVG / LVGL XML status-screen module** (Zephyr module
+name `zmk-svg`). Keyboard users enable it from a ZMK config; agents should treat
+sibling Sofle/ZMK forks as the integration workspace, not upstream ZMK alone.
+
+## Dual pipelines (read this first)
+
+Two authoring paths share one firmware binding model. Do **not** assume SVG-only
+or XML-only without checking Kconfig.
+
+| Path | When | Sources | Generate into | Runtime |
+| --- | --- | --- | --- | --- |
+| SVG | default (`CONFIG_ZMK_SVG_LVGL_XML` off) | `docs/screens/`, `docs/examples/` | `src/generated_*.h` | `src/svg_screen.c` |
+| XML | `CONFIG_ZMK_SVG_LVGL_XML=y` | `docs/ui/screens/`, `docs/ui/assets/` | `src/generated_xml/<theme>/` | `src/xml_screen.c` |
+
+Parity and gaps: [docs/xml-vs-svg.md](docs/xml-vs-svg.md).  
+Authoring: [docs/widget-authoring.md](docs/widget-authoring.md) (SVG),
+[docs/widget-authoring-xml.md](docs/widget-authoring-xml.md) (XML).
+
+### Agent rules
+
+- After editing XML screens or assets, regenerate the matching
+  `src/generated_xml/<theme>/status_screen_gen.{c,h}` and commit them.
+- After editing SVG screens used by firmware themes, regenerate the matching
+  `src/generated_*_screen.h` (or `generated_screen.h`) and commit them.
+- Prefer fixing both `svg_screen.c` and `xml_screen.c` when changing shared
+  update/read_field behavior (they are near-forks).
+- Do not enable firmware `LV_USE_SVG` / ThorVG for decoration; use offline
+  I1/I2 embeds.
+- Do not edit Cursor plan files under `~/.cursor/plans/` unless the user asks.
 
 ## Dev Rules
 
-- Commit changes at each milestone. Ensure pre-commit works and never bypass pre-commit check.
+- Commit changes at each milestone. Ensure pre-commit works and never bypass pre-commit.
 - Write simple and sufficient tests for new features.
-  - Unit test: Test major functionalities as much as possible by adding case to `tests/<test case>`.
-    You might have to add test only logic like executing logic at zephyr initialization to improve test coverage.
-  - Build test: Enable feature in `tests/zmk-config/*`. It is to verify build works for real device and to easily test with real device.
-    Ensure the feature and device is enabled as expected in the build by verifying output in `test.py`.
-- Update README.md properly to guide how to use the module to unfamiliar ZMK keyboard users. Keep the guide simple but sufficient!
-- Create pull request to origin after finishing the task
+  - Host/unit: extend `test_nice_view_svg.py` and/or `test_nice_view_xml.py`.
+  - Firmware unit: `tests/<case>` via `west zmk-test` when behavior is on-device.
+  - Build: enable features in `tests/zmk-config/*` and assert in `test.py`.
+- Update `README.md` for keyboard users; keep guides short.
+- Create a PR to origin after finishing a task when asked.
 
-## Workspace Repositories and Integration
+## Workspace repositories and integration
 
-This module is integrated into the Sofle firmware through sibling repositories in the user's workspace:
+Sibling repos (typical local layout):
 
-- `zmk-sofle` owns the Sofle shield, keymap, and firmware build configuration.
-- `zmk-sofle/config/west.yml` pins the firmware dependency to `https://github.com/MicheleYin/zmk.git` at `feature/nice-view` and this module to `https://github.com/MicheleYin/zmk-module-svg` at `feature/nice-view`.
-- The ZMK dependency is a custom fork, not upstream `zmkfirmware/zmk`. Check the sibling `zmk` repository when relying on ZMK APIs, configuration, or driver behavior. Do not switch to upstream or assume upstream `main` contains these custom changes.
-- The Zephyr module name used by firmware is `zmk-svg`.
+- `zmk-sofle` — Sofle shield, keymap, `west.yml`, `build.yaml`.
+- `zmk` — custom fork (`MicheleYin/zmk`), often `feature/nice-view`; **not**
+  upstream `zmkfirmware/zmk` for Nice!View work.
+- This module — remote may be `MicheleYin/zmk-module-template` or
+  `MicheleYin/zmk-module-svg`; Zephyr name remains `zmk-svg`.
 
-Use the Sofle manifest for end-to-end firmware integration. From `zmk-sofle`, set up the workspace with `west init -l config`, `west update`, and `west zephyr-export`; use its `build.yaml` as the source of truth for build targets and options.
+Sofle `config/west.yml` pins ZMK and this module. For end-to-end firmware:
 
-The standalone test manifests under `west/` currently fetch upstream ZMK `main`. Those tests are useful for module-level checks, but they do not verify compatibility with the custom ZMK fork or replace a Sofle firmware build. For changes that depend on custom ZMK behavior, validate against the Sofle integration workspace.
+```sh
+# from zmk-sofle
+west init -l config && west update && west zephyr-export
+# then west zmk-build per build.yaml
+```
+
+Standalone `west/` manifests may still fetch upstream ZMK `main`; use Sofle for
+custom-fork validation.
 
 ## Commands
 
-Test command usually takes 1min.
+Host tooling needs `uv` and (for SVG/XML raster) `rsvg-convert` on `PATH`.
 
 ```sh
-# Run lint and test when required
+# Lint / hooks
 pre-commit run
-# Run unit test + build test and verify the results
+
+# Host unit tests (SVG + XML)
 python3 -m unittest
-# Run build test directly
-west zmk-build tests/zmk-config
-# Run unit test directly
+python3 -m unittest test_nice_view_xml test_nice_view_svg
+
+# XML validate / generate / live (example: default theme)
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/nice_view_xml.py generate docs/ui/screens/status_screen.xml \
+  --output-dir src/generated_xml/default
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/nice_view_xml_live.py docs/ui/screens/status_screen.xml
+
+# SVG (legacy path)
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/nice_view_svg.py validate docs/screens/default.svg
+
+# Module west tests / build
 west zmk-test tests -m .
+west zmk-build tests/zmk-config
 ```
+
+## XML theme to output directory
+
+| Screen | `--output-dir` |
+| --- | --- |
+| `docs/ui/screens/status_screen.xml` | `src/generated_xml/default` |
+| `docs/ui/screens/day.xml` | `src/generated_xml/day` |
+| `docs/ui/screens/night.xml` | `src/generated_xml/night` |
+| `docs/ui/screens/oled-128x32.xml` | `src/generated_xml/oled` |
+| `docs/ui/screens/oled-128x32-mirror.xml` | `src/generated_xml/oled_mirror` |
+
+## Firmware Kconfig (XML)
+
+```conf
+CONFIG_ZMK_SVG=y
+CONFIG_ZMK_SVG_SCREEN=y
+CONFIG_ZMK_SVG_LVGL_XML=y
+```
+
+For 128x32 OLED automatic theme selection, also set `CONFIG_ZMK_SVG_LVGL_XML_OLED=y`
+(and `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the mirrored half).
+
+## Codacy / local analysis
+
+If Codacy MCP is configured, analyze edited files after substantive changes.
+Use provider/org/repo settings from workspace Codacy rules when calling remote APIs.

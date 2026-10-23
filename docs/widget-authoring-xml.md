@@ -19,7 +19,7 @@ Each screen file must be a single `<component>` with one `<view width="…" heig
 
 | Element | Role |
 | --- | --- |
-| `<zmk_status_text field="…" format="percent\|text\|output-label"/>` | Label bound to a field |
+| `<zmk_status_text field="…" format="text\|percent\|output-label\|profile-number"/>` | Label bound to a field |
 | `<zmk_status_bar field="…"/>` | Horizontal bar (integer/percent fields) |
 | `<zmk_status_arc field="…"/>` | Ring indicator |
 | `<zmk_status_when field="…" test="equals\|bit_set\|bit_clear" …>` | Conditional visibility |
@@ -90,6 +90,16 @@ Left/right Nice!View themes use `CONFIG_ZMK_SVG_THEME_LEFT=y` or
 
 ## SVG migration
 
-SVG `data-nvp-*` attributes map to the ZMK XML widgets above. Background artwork
-from SVG should be converted to I1/I2 `lv_image` assets rather than rsvg-at-build-time.
-The legacy SVG pipeline remains available when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
+See the full attribute map and remaining gaps in [xml-vs-svg.md](xml-vs-svg.md).
+
+Background / icon artwork from SVG should be converted to PNG or small SVG assets under
+`docs/ui/assets/` and referenced with `<lv_image>`. The SVG pipeline remains available
+when `CONFIG_ZMK_SVG_LVGL_XML` is disabled.
+
+### Not yet in XML (use SVG or wait)
+
+- `widget_types.json` / `data-nvp-widget` slot validation
+- `prefix` / `suffix` / fill-derived `color` on text bindings
+- `not_equals` when-tests in codegen
+- Transform-aware sprite bounds (SVG `data-nvp-bounds`)
+- Full example gallery parity with `docs/examples/*`

@@ -44,6 +44,7 @@ LVGL_WIDGET_ATTRIBUTES = frozenset(
     }
 )
 
+
 @dataclass(frozen=True)
 class WidgetSpec:
     field_types: frozenset[str] | None
@@ -53,7 +54,9 @@ class WidgetSpec:
 WIDGETS: dict[str, WidgetSpec] = {
     "zmk_status_text": WidgetSpec(
         None,
-        frozenset({"field", "format", "role", "text", "long_mode", "font_size", "anchor"}),
+        frozenset(
+            {"field", "format", "role", "text", "long_mode", "font_size", "anchor"}
+        ),
     ),
     "zmk_status_bar": WidgetSpec(
         frozenset({"integer", "percent"}),
@@ -130,7 +133,9 @@ def _validate_dimensions(
     return errors
 
 
-def _validate_when(element: ET.Element, field: dict[str, Any], field_id: str) -> list[str]:
+def _validate_when(
+    element: ET.Element, field: dict[str, Any], field_id: str
+) -> list[str]:
     errors: list[str] = []
     test = element.get("test")
     if test in {"equals", "not_equals"}:
@@ -148,9 +153,7 @@ def _validate_when(element: ET.Element, field: dict[str, Any], field_id: str) ->
         if bit is None or not re.fullmatch(r"\d+", bit):
             errors.append(f"<zmk_status_when test='{test}'> needs a bit index")
         elif int(bit) >= max(1, field.get("maximum", 0).bit_length()):
-            errors.append(
-                f"<zmk_status_when> bit {bit} is outside field '{field_id}'"
-            )
+            errors.append(f"<zmk_status_when> bit {bit} is outside field '{field_id}'")
     else:
         errors.append(
             "<zmk_status_when> test must be equals, not_equals, bit_set, or bit_clear"
@@ -187,9 +190,7 @@ def _validate_widget(
         return errors + [f"<{element.tag}> references unknown field '{field_id}'"]
 
     if widget.field_types is not None and field["type"] not in widget.field_types:
-        errors.append(
-            f"<{element.tag}> cannot bind {field['type']} field '{field_id}'"
-        )
+        errors.append(f"<{element.tag}> cannot bind {field['type']} field '{field_id}'")
     role = element.get("role")
     if role is not None and role not in field.get("available_on", []):
         errors.append(
@@ -247,7 +248,9 @@ def validate_screen_text(
                         "<lv_image> under <zmk_status_when> should set width and height"
                     )
         if element.tag == "zmk_status_when":
-            children = [node for node in element if node.tag in {"lv_label", "lv_image"}]
+            children = [
+                node for node in element if node.tag in {"lv_label", "lv_image"}
+            ]
             if not children:
                 errors.append(
                     "<zmk_status_when> needs a nested <lv_label> or <lv_image>"
@@ -330,7 +333,10 @@ def main(argv: list[str] | None = None) -> int:
     preview_parser.add_argument("--output", type=Path, required=True)
 
     args = parser.parse_args(argv)
-    if getattr(args, "width", None) is not None and getattr(args, "height", None) is None:
+    if (
+        getattr(args, "width", None) is not None
+        and getattr(args, "height", None) is None
+    ):
         parser.error("--width and --height must be provided together")
 
     try:

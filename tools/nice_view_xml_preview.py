@@ -39,6 +39,9 @@ def _default_value(field: dict[str, Any]) -> Any:
 def _format_value(value: Any, field: dict[str, Any], fmt: str) -> str:
     if value is None:
         return "--"
+    if fmt == "profile-number":
+        profile_index = int(value)
+        return str(profile_index + 1) if profile_index >= 0 else "-"
     if fmt == "percent" and field["type"] == "percent":
         return f"{value}%"
     if field["type"] == "boolean":
@@ -122,8 +125,12 @@ def preview_xml_text(
             element.set("style_text_font", _preview_font(font_size, monospace=True))
         elif element.tag == "lv_label" and element.get("text") is not None:
             font_size = _coord(element, "font_size", 10)
+            monospace = element.get("font_family") == "monospace"
             element.attrib.pop("font_size", None)
-            element.set("style_text_font", _preview_font(font_size))
+            element.attrib.pop("font_family", None)
+            element.set(
+                "style_text_font", _preview_font(font_size, monospace=monospace)
+            )
         elif element.tag == "zmk_status_bar" and field_id:
             field = fields[field_id]
             percent = values.get(field_id, 0)

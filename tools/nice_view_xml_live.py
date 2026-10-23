@@ -150,7 +150,9 @@ def build_paired_preview_config(
     dependencies: set[Path] | None = None,
 ) -> dict[str, Any]:
     left = build_preview_config(left_screen, left_role, legacy_inverted, dependencies)
-    right = build_preview_config(right_screen, right_role, legacy_inverted, dependencies)
+    right = build_preview_config(
+        right_screen, right_role, legacy_inverted, dependencies
+    )
     bindings: dict[str, dict[str, Any]] = {}
     for config in (left, right):
         for binding in config["bindings"]:
@@ -226,7 +228,9 @@ class LivePreviewServer(ThreadingHTTPServer):
                 directory = directory.parent
             if directory in self.watched_dirs or not directory.is_dir():
                 continue
-            self.observer.schedule(_DebouncedFileHandler(self), str(directory), recursive=True)
+            self.observer.schedule(
+                _DebouncedFileHandler(self), str(directory), recursive=True
+            )
             self.watched_dirs.add(directory)
 
     def reload_sources(self) -> bool:
@@ -416,7 +420,9 @@ def _invert_png(png_bytes: bytes) -> bytes:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("screen", type=Path, help="screen XML; left screen in paired mode")
+    parser.add_argument(
+        "screen", type=Path, help="screen XML; left screen in paired mode"
+    )
     parser.add_argument(
         "--right-screen",
         type=Path,
@@ -443,7 +449,9 @@ def main(argv: list[str] | None = None) -> int:
             if arguments.right_screen
             else (arguments.screen.resolve(),)
         )
-        server.left_role = arguments.left_role if arguments.right_screen else arguments.role
+        server.left_role = (
+            arguments.left_role if arguments.right_screen else arguments.role
+        )
         server.right_role = arguments.right_role
         server.legacy_inverted = arguments.legacy_inverted
         server.observer = Observer()

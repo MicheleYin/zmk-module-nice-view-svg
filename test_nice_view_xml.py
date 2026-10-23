@@ -103,6 +103,16 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         self.assertIsNotNone(label)
         self.assertEqual(label.get("style_text_font"), "lv_montserrat_8")
 
+        monospace_xml = make_screen(
+            '<lv_label text="LAYER" x="4" y="4" font_size="8" '
+            'font_family="monospace" />'
+        )
+        monospace_label = ET.fromstring(
+            preview_xml_text(monospace_xml, FIELDS, {}, "central")
+        ).find(".//lv_label")
+        self.assertIsNotNone(monospace_label)
+        self.assertEqual(monospace_label.get("style_text_font"), "lv_unscii_8")
+
         status_xml = make_screen(
             '<zmk_status_text field="battery.left.percent" format="percent" '
             'x="4" y="12" font_size="8" />'
@@ -126,6 +136,71 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 source,
             )
             self.assertIn("lv_obj_set_style_pad_all(screen, 0, LV_PART_MAIN);", source)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            output_dir = Path(temp_dir) / "generated"
+            _, source_path = write_generated(screen_path, output_dir, monospace_xml)
+            self.assertIn(
+                "lv_obj_set_style_text_font(label, &lv_font_unscii_8, LV_PART_MAIN);",
+                source_path.read_text(),
+            )
+
+    def test_profile_labels_use_fixed_centered_cells(self):
+        xml = make_screen(
+            '<lv_label text="1" x="35" y="40" width="19" height="8" '
+            'font_size="8" font_family="monospace" style_text_align="center" />'
+        )
+        preview_label = ET.fromstring(
+            preview_xml_text(xml, FIELDS, {}, "central")
+        ).find(".//lv_label")
+        self.assertIsNotNone(preview_label)
+        self.assertEqual(preview_label.get("width"), "19")
+        self.assertEqual(preview_label.get("height"), "8")
+        self.assertEqual(preview_label.get("style_text_align"), "center")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            output_dir = Path(temp_dir) / "generated"
+            _, source_path = write_generated(screen_path, output_dir, xml)
+            source = source_path.read_text()
+            self.assertIn("lv_obj_set_size(label, 19, 8);", source)
+            self.assertIn(
+                "lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);",
+                source,
+            )
+
+    def test_profile_number_format_matches_firmware_numbering(self):
+        xml = make_screen(
+            '<zmk_status_text field="ble.active_profile" format="profile-number" '
+            'x="80" y="48" font_size="8" anchor="middle" />'
+        )
+        for profile_index, expected in ((0, "1"), (4, "5"), (-1, "-")):
+            with self.subTest(profile_index=profile_index):
+                label = ET.fromstring(
+                    preview_xml_text(
+                        xml, FIELDS, {"ble.active_profile": profile_index}, "central"
+                    )
+                ).find(".//lv_label")
+                self.assertIsNotNone(label)
+                self.assertEqual(label.get("text"), expected)
+
+    def test_nice_view_shows_one_profile_number_at_a_fixed_position(self):
+        screens = Path(__file__).parent / "docs" / "ui" / "screens"
+        for name in ("nice-view-left.xml", "nice-view-right.xml"):
+            with self.subTest(screen=name):
+                root = ET.parse(screens / name).getroot()
+                profile_numbers = root.findall(
+                    ".//zmk_status_text[@field='ble.active_profile']"
+                )
+                self.assertEqual(len(profile_numbers), 1)
+                self.assertEqual(profile_numbers[0].get("format"), "profile-number")
+                self.assertEqual(profile_numbers[0].get("x"), "80")
+                self.assertEqual(profile_numbers[0].get("y"), "48")
+                self.assertEqual(profile_numbers[0].get("anchor"), "middle")
+                self.assertIsNone(
+                    root.find(".//zmk_status_when[@field='display.half']")
+                )
 
     @unittest.skipUnless(shutil.which("rsvg-convert"), "rsvg-convert is required")
     def test_background_export_removes_svg_text(self):
@@ -366,13 +441,13 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         ):
             with self.subTest(theme=theme):
                 self.assertIn(
-                    f'generated_xml/{theme}/status_screen_gen.h', header_selector
+                    f"generated_xml/{theme}/status_screen_gen.h", header_selector
                 )
                 self.assertIn(
-                    f'generated_xml/{theme}/status_screen_gen.c', source_selector
+                    f"generated_xml/{theme}/status_screen_gen.c", source_selector
                 )
 
-    def test_ui_screens_validate_and_embed_background(self):
+    def test_ui_screens_validate_and_embed_assets_without_background(self):
         from tools.nice_view_xml import validate_screen
 
         screens = Path(__file__).parent / "docs" / "ui" / "screens"
@@ -395,11 +470,10 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         )
         header = generated.with_suffix(".h").read_text()
         source = generated.read_text()
-        self.assertIn("ZMK_NVP_XML_HAS_BACKGROUND 1", header)
+        self.assertIn("ZMK_NVP_XML_HAS_BACKGROUND 0", header)
         self.assertRegex(header, r"ZMK_NVP_SVG_VISIBLE_ASSET_COUNT [1-9]")
-        self.assertIn("zmk_nvp_svg_background", source)
+        self.assertNotIn("zmk_nvp_svg_background", source)
         self.assertIn("zmk_nvp_svg_visible_assets", source)
-        self.assertIn("lv_image_create", source)
         self.assertIn("LV_COLOR_FORMAT_I2", source)
 
     def test_generated_firmware_themes_match_xml_sources(self):

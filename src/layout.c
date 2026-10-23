@@ -90,5 +90,5 @@ static int nice_view_plus_settings_set(const char *name, size_t len, settings_re
     return 0;
 }
 
-SETTINGS_STATIC_HANDLER_DEFINE(nice_view_plus, "nice_view_plus", NULL,
-                               nice_view_plus_settings_set, NULL, NULL);
+SETTINGS_STATIC_HANDLER_DEFINE(nice_view_plus, "nice_view_plus", NULL, nice_view_plus_settings_set,
+                               NULL, NULL);

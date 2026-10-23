@@ -22,37 +22,25 @@ static lv_obj_t *preview_view;
 PREVIEW_EXPORT int render_xml(const char *xml);
 PREVIEW_EXPORT int set_preview_size(int width, int height);
 
-static void flush_display(lv_display_t *display, const lv_area_t *area, uint8_t *pixels)
-{
+static void flush_display(lv_display_t *display, const lv_area_t *area, uint8_t *pixels) {
     (void)area;
     (void)pixels;
     lv_display_flush_ready(display);
 }
 
-int main(void)
-{
+int main(void) {
     lv_init();
     lv_xml_init();
     return 0;
 }
 
-PREVIEW_EXPORT uint8_t *get_framebuffer(void)
-{
-    return framebuffer;
-}
+PREVIEW_EXPORT uint8_t *get_framebuffer(void) { return framebuffer; }
 
-PREVIEW_EXPORT int get_width(void)
-{
-    return preview_width;
-}
+PREVIEW_EXPORT int get_width(void) { return preview_width; }
 
-PREVIEW_EXPORT int get_height(void)
-{
-    return preview_height;
-}
+PREVIEW_EXPORT int get_height(void) { return preview_height; }
 
-PREVIEW_EXPORT int set_preview_size(int width, int height)
-{
+PREVIEW_EXPORT int set_preview_size(int width, int height) {
     if (width <= 0 || height <= 0 || width > 1024 || height > 1024) {
         return 0;
     }
@@ -88,8 +76,7 @@ PREVIEW_EXPORT int set_preview_size(int width, int height)
     }
     lv_display_set_color_format(preview_display, LV_COLOR_FORMAT_ARGB8888);
     lv_display_set_flush_cb(preview_display, flush_display);
-    lv_display_set_buffers(preview_display, framebuffer, NULL,
-                           (uint32_t)width * height * 4,
+    lv_display_set_buffers(preview_display, framebuffer, NULL, (uint32_t)width * height * 4,
                            LV_DISPLAY_RENDER_MODE_FULL);
     lv_obj_set_style_bg_color(lv_screen_active(), lv_color_white(), 0);
     lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
@@ -97,8 +84,7 @@ PREVIEW_EXPORT int set_preview_size(int width, int height)
     return 1;
 }
 
-PREVIEW_EXPORT int render_xml(const char *xml)
-{
+PREVIEW_EXPORT int render_xml(const char *xml) {
     if (xml == NULL || preview_display == NULL) {
         return 0;
     }

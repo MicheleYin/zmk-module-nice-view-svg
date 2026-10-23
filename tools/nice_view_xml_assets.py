@@ -32,9 +32,7 @@ def monochrome_pixels_from_png(data: bytes) -> tuple[tuple[int, int], list[int]]
         background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
         background.alpha_composite(rgba)
         grayscale = background.convert("L")
-        pixels = [
-            _hard_threshold_luma(value) for value in grayscale.getdata()
-        ]
+        pixels = [_hard_threshold_luma(value) for value in grayscale.getdata()]
         return grayscale.size, pixels
 
 
@@ -157,9 +155,7 @@ def load_i1_png(path: Path) -> tuple[int, int, bytes]:
     return load_i1_image(path)
 
 
-def preview_rgba_image(
-    path: Path, width: int | None = None, height: int | None = None
-):
+def preview_rgba_image(path: Path, width: int | None = None, height: int | None = None):
     """Return a Pillow RGBA image for host preview compositing."""
     Image = _load_pillow()
     data = load_png_or_svg_bytes(path, width, height)
@@ -213,8 +209,7 @@ def export_static_svg_background(svg_path: Path, png_path: Path) -> Path:
         )
         if result.returncode != 0:
             raise RuntimeError(
-                result.stderr.decode("utf-8", errors="replace")
-                or "rsvg-convert failed"
+                result.stderr.decode("utf-8", errors="replace") or "rsvg-convert failed"
             )
         Image = _load_pillow()
         with Image.open(BytesIO(result.stdout)) as image:

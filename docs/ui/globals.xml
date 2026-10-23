@@ -6,5 +6,7 @@
 
   generate embeds each PNG as an I1 LVGL image descriptor in status_screen_gen.c.
   Fonts use the module's selected Montserrat / unscii LVGL fonts at runtime.
+  Set font_family="monospace" on compact labels to use Unscii 8, matching
+  compact dynamic status text. Larger labels retain the Montserrat hierarchy.
 -->
 <globals/>

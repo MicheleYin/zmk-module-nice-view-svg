@@ -31,6 +31,10 @@ class StaticLabel:
     x: int
     y: int
     font_size: int = 10
+    font_family: str = ""
+    width: int = 0
+    height: int = 0
+    text_align: str = ""
 
 
 @dataclass
@@ -90,12 +94,43 @@ def _int_attr(element: ET.Element, name: str, default: int = 0) -> int:
     return int(value)
 
 
-def _static_label_font(font_size: int) -> str:
+def _static_label_font(font_size: int, font_family: str = "") -> str:
     if font_size >= 16:
         return "&lv_font_montserrat_20"
     if font_size > 8:
         return "&lv_font_montserrat_12"
+    if font_family == "monospace":
+        return "&lv_font_unscii_8"
     return "&lv_font_montserrat_8"
+
+
+def _static_label_lines(label: StaticLabel) -> list[str]:
+    font = _static_label_font(label.font_size, label.font_family)
+    lines = [
+        "    {",
+        "        lv_obj_t *label = lv_label_create(screen);",
+        f"        lv_label_set_text(label, {_c_string(label.text)});",
+        f"        lv_obj_set_style_text_font(label, {font}, LV_PART_MAIN);",
+        f"        lv_obj_set_pos(label, {label.x}, {label.y});",
+    ]
+    if label.width > 0 and label.height > 0:
+        lines.append(f"        lv_obj_set_size(label, {label.width}, {label.height});")
+    text_align = {
+        "left": "LV_TEXT_ALIGN_LEFT",
+        "center": "LV_TEXT_ALIGN_CENTER",
+        "right": "LV_TEXT_ALIGN_RIGHT",
+    }.get(label.text_align)
+    if text_align is not None:
+        lines.append(
+            f"        lv_obj_set_style_text_align(label, {text_align}, LV_PART_MAIN);"
+        )
+    lines.extend(
+        [
+            "        lv_obj_set_style_text_color(label, xml_foreground(), LV_PART_MAIN);",
+            "    }",
+        ]
+    )
+    return lines
 
 
 def _optional_positive_int(element: ET.Element, name: str) -> int | None:
@@ -200,6 +235,10 @@ def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> Scree
                         x=_int_attr(element, "x"),
                         y=_int_attr(element, "y"),
                         font_size=_int_attr(element, "font_size", 10),
+                        font_family=element.get("font_family", ""),
+                        width=_int_attr(element, "width"),
+                        height=_int_attr(element, "height"),
+                        text_align=element.get("style_text_align", ""),
                     )
                 )
         elif element.tag == "zmk_status_text":
@@ -575,18 +614,7 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
         )
 
     for label in model.static_labels:
-        font = _static_label_font(label.font_size)
-        c_lines.extend(
-            [
-                "    {",
-                "        lv_obj_t *label = lv_label_create(screen);",
-                f"        lv_label_set_text(label, {_c_string(label.text)});",
-                f"        lv_obj_set_style_text_font(label, {font}, LV_PART_MAIN);",
-                f"        lv_obj_set_pos(label, {label.x}, {label.y});",
-                "        lv_obj_set_style_text_color(label, xml_foreground(), LV_PART_MAIN);",
-                "    }",
-            ]
-        )
+        c_lines.extend(_static_label_lines(label))
 
     c_lines.extend(["}", ""])
 

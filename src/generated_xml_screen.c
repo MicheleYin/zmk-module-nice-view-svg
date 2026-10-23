@@ -6,14 +6,14 @@
 #include "generated_xml/nice_view_left/status_screen_gen.c"
 #elif IS_ENABLED(CONFIG_ZMK_SVG_THEME_RIGHT)
 #include "generated_xml/nice_view_right/status_screen_gen.c"
-#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&                              \
+#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 128 &&                                          \
     DT_PROP(DT_CHOSEN(zephyr_display), height) == 32
 #if IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF)
 #include "generated_xml/oled_right/status_screen_gen.c"
 #else
 #include "generated_xml/oled_left/status_screen_gen.c"
 #endif
-#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 160 &&                              \
+#elif DT_PROP(DT_CHOSEN(zephyr_display), width) == 160 &&                                          \
     DT_PROP(DT_CHOSEN(zephyr_display), height) == 68
 #if IS_ENABLED(CONFIG_ZMK_SVG_RIGHT_HALF)
 #include "generated_xml/nice_view_right/status_screen_gen.c"

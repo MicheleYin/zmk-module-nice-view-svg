@@ -126,9 +126,7 @@ def _expand_children(
             _expand_children(child, source, screen_directory, stack, dependencies)
 
 
-def expand_screen_file(
-    screen_path: Path, dependencies: set[Path] | None = None
-) -> str:
+def expand_screen_file(screen_path: Path, dependencies: set[Path] | None = None) -> str:
     """Return a screen with all reusable widget fragments expanded inline."""
     screen_path = screen_path.resolve()
     if dependencies is not None:

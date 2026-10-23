@@ -70,6 +70,63 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             label_pixels = rendered.crop((2, 2, 55, 18)).getdata()
             self.assertIn(0, label_pixels)
 
+    def test_preview_status_text_matches_firmware_baseline_and_anchor(self):
+        xml = make_screen(
+            '<zmk_status_text field="battery.left.percent" format="percent" '
+            'x="158" y="18" font_size="11" anchor="end" />',
+            width=128,
+            height=32,
+        )
+
+        normalized = ET.fromstring(
+            preview_xml_text(
+                xml,
+                FIELDS,
+                {"battery.left.percent": 87},
+                "central",
+            )
+        )
+        label = normalized.find(".//lv_label")
+
+        self.assertIsNotNone(label)
+        self.assertEqual(label.get("x"), "30")
+        self.assertEqual(label.get("y"), "7")
+        self.assertEqual(label.get("width"), "128")
+        self.assertEqual(label.get("height"), "13")
+        self.assertEqual(label.get("style_text_align"), "right")
+        self.assertEqual(label.get("style_text_font"), "lv_montserrat_12")
+
+    def test_static_label_font_size_is_shared_by_preview_and_codegen(self):
+        xml = make_screen('<lv_label text="LINK" x="4" y="4" font_size="8" />')
+        normalized = ET.fromstring(preview_xml_text(xml, FIELDS, {}, "central"))
+        label = normalized.find(".//lv_label")
+        self.assertIsNotNone(label)
+        self.assertEqual(label.get("style_text_font"), "lv_montserrat_8")
+
+        status_xml = make_screen(
+            '<zmk_status_text field="battery.left.percent" format="percent" '
+            'x="4" y="12" font_size="8" />'
+        )
+        status_label = ET.fromstring(
+            preview_xml_text(
+                status_xml, FIELDS, {"battery.left.percent": 87}, "central"
+            )
+        ).find(".//lv_label")
+        self.assertIsNotNone(status_label)
+        self.assertEqual(status_label.get("style_text_font"), "lv_unscii_8")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            output_dir = Path(temp_dir) / "generated"
+            _, source_path = write_generated(screen_path, output_dir, xml)
+
+            source = source_path.read_text()
+            self.assertIn(
+                "lv_obj_set_style_text_font(label, &lv_font_montserrat_8, LV_PART_MAIN);",
+                source,
+            )
+            self.assertIn("lv_obj_set_style_pad_all(screen, 0, LV_PART_MAIN);", source)
+
     @unittest.skipUnless(shutil.which("rsvg-convert"), "rsvg-convert is required")
     def test_background_export_removes_svg_text(self):
         svg = (
@@ -165,7 +222,9 @@ class NiceViewXmlValidationTests(unittest.TestCase):
 
         errors = validate_screen_text(xml, FIELDS)
 
-        self.assertTrue(any("unsupported attributes: magic" in error for error in errors))
+        self.assertTrue(
+            any("unsupported attributes: magic" in error for error in errors)
+        )
         self.assertTrue(
             any("unsupported format 'uppercase'" in error for error in errors)
         )
@@ -232,7 +291,10 @@ class NiceViewXmlValidationTests(unittest.TestCase):
     def test_modular_samples_expand_validate_and_generate(self):
         samples = Path(__file__).parent / "docs" / "ui" / "samples"
         for path in sorted(samples.glob("*.xml")):
-            with self.subTest(sample=path.name), tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                self.subTest(sample=path.name),
+                tempfile.TemporaryDirectory() as temp_dir,
+            ):
                 self.assertEqual(validate_screen(path), [])
                 expanded = expand_screen_file(path)
                 self.assertNotIn("zmk_include", expanded)
@@ -260,15 +322,19 @@ class NiceViewXmlValidationTests(unittest.TestCase):
 
     def test_paired_preview_merges_screen_bindings_and_dimensions(self):
         screens = Path(__file__).parent / "docs" / "ui" / "screens"
-        config = build_paired_preview_config(
-            screens / "day.xml", screens / "night.xml"
-        )
+        config = build_paired_preview_config(screens / "day.xml", screens / "night.xml")
 
         self.assertTrue(config["paired"])
-        self.assertEqual(config["panelRoles"], {"left": "central", "right": "peripheral"})
+        self.assertEqual(
+            config["panelRoles"], {"left": "central", "right": "peripheral"}
+        )
         self.assertEqual(config["screens"]["left"]["width"], 160)
-        self.assertIn("battery.left.percent", {field["id"] for field in config["bindings"]})
-        self.assertIn("battery.right.percent", {field["id"] for field in config["bindings"]})
+        self.assertIn(
+            "battery.left.percent", {field["id"] for field in config["bindings"]}
+        )
+        self.assertIn(
+            "battery.right.percent", {field["id"] for field in config["bindings"]}
+        )
 
     def test_ui_screens_validate_and_embed_background(self):
         from tools.nice_view_xml import validate_screen
@@ -316,22 +382,18 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 generate(screens / screen_name, Path(temp_dir))
                 for extension in (".c", ".h"):
                     generated = Path(temp_dir) / f"status_screen_gen{extension}"
-                    committed = (
-                        generated_root
-                        / theme
-                        / f"status_screen_gen{extension}"
-                    )
+                    committed = generated_root / theme / f"status_screen_gen{extension}"
                     self.assertEqual(generated.read_bytes(), committed.read_bytes())
 
     def test_live_reload_keeps_last_good_snapshot_on_invalid_xml(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             screen_path = Path(temp_dir) / "screen.xml"
             screen_path.write_text(
-                make_screen('<zmk_status_text field="battery.left.percent" x="1" y="1"/>')
+                make_screen(
+                    '<zmk_status_text field="battery.left.percent" x="1" y="1"/>'
+                )
             )
-            server = LivePreviewServer(
-                ("127.0.0.1", 0), LivePreviewHandler
-            )
+            server = LivePreviewServer(("127.0.0.1", 0), LivePreviewHandler)
             server.fields = FIELDS
             server.screen_paths = (screen_path,)
             server.left_role = "central"
@@ -352,7 +414,9 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 )
 
                 screen_path.write_text(
-                    make_screen('<zmk_status_text field="battery.left.percent" x="2" y="1"/>')
+                    make_screen(
+                        '<zmk_status_text field="battery.left.percent" x="2" y="1"/>'
+                    )
                 )
                 self.assertTrue(server.reload_sources())
                 last_good_xml = server.xml_text
@@ -379,7 +443,7 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             screen_path.write_text(
                 '<component><view width="160" height="68">'
                 '<zmk_include src="widgets/label.xml" label="BEFORE"/>'
-                '</view></component>'
+                "</view></component>"
             )
             server = LivePreviewServer(("127.0.0.1", 0), LivePreviewHandler)
             server.fields = FIELDS

@@ -26,6 +26,7 @@ repos:
       - id: clang-format
         name: clang-format
         files: \.(c|h|proto)$
+        exclude: ^src/generated_xml/
         additional_dependencies: [clang-format==21.1.8]
   # Lint for test script
   - repo: https://github.com/astral-sh/ruff-pre-commit

@@ -1,7 +1,7 @@
 <!-- Day / left theme from docs/examples/shan.svg art + compact status overlay. -->
 <component>
   <view extends="lv_obj" width="160" height="68"
-        style_bg_color="0xffffff" scrollable="false">
+        style_bg_color="0xffffff" style_pad_all="0" scrollable="false">
     <lv_image src="../assets/day_bg.png" x="0" y="0" />
 
     <zmk_status_bar field="battery.left.percent" x="14" y="8" width="18" height="4" />

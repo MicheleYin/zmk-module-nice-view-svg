@@ -195,6 +195,7 @@ void zmk_nvp_xml_layout_create(lv_obj_t *screen)
     if (screen == NULL) {
         return;
     }
+    lv_obj_set_style_pad_all(screen, 0, LV_PART_MAIN);
     {
         lv_obj_t *image = lv_image_create(screen);
         lv_image_set_src(image, &zmk_nvp_svg_background);

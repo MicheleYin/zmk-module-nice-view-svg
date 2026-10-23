@@ -90,6 +90,14 @@ def _int_attr(element: ET.Element, name: str, default: int = 0) -> int:
     return int(value)
 
 
+def _static_label_font(font_size: int) -> str:
+    if font_size >= 16:
+        return "&lv_font_montserrat_20"
+    if font_size > 8:
+        return "&lv_font_montserrat_12"
+    return "&lv_font_montserrat_8"
+
+
 def _optional_positive_int(element: ET.Element, name: str) -> int | None:
     value = element.get(name)
     if value is None or not re.fullmatch(r"\d+", value):
@@ -147,9 +155,7 @@ def _is_under_when(element: ET.Element, parents: dict[ET.Element, ET.Element]) -
     return False
 
 
-def collect_bindings(
-    root: ET.Element, screen_path: Path | None = None
-) -> ScreenModel:
+def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> ScreenModel:
     views = root.findall("view")
     if len(views) != 1:
         raise ValueError("component must contain exactly one direct <view>")
@@ -411,19 +417,17 @@ def _emit_i2_visible_c(lines: list[str], assets: list[VisibleAsset]) -> None:
                 "",
             ]
         )
-    lines.append(
-        "const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {"
-    )
+    lines.append("const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {")
     if assets:
-        lines.extend(f"    &zmk_nvp_svg_visible_{index}," for index in range(len(assets)))
+        lines.extend(
+            f"    &zmk_nvp_svg_visible_{index}," for index in range(len(assets))
+        )
     else:
         lines.append("    0,")
     lines.extend(["};", ""])
 
 
-def generate_sources(
-    xml_text: str, screen_path: Path | None = None
-) -> tuple[str, str]:
+def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[str, str]:
     root = ET.fromstring(xml_text)
     if root.tag != "component":
         raise ValueError("root element must be <component>")
@@ -527,9 +531,7 @@ def generate_sources(
     ]
     for index, image in enumerate(model.static_images):
         symbol = (
-            "zmk_nvp_svg_background"
-            if index == 0
-            else f"zmk_nvp_xml_static_{index}"
+            "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
         )
         _emit_i1_image_c(c_lines, symbol, image)
     _emit_i2_visible_c(c_lines, model.visible_assets)
@@ -554,14 +556,13 @@ def generate_sources(
             "    if (screen == NULL) {",
             "        return;",
             "    }",
+            "    lv_obj_set_style_pad_all(screen, 0, LV_PART_MAIN);",
         ]
     )
 
     for index, image in enumerate(model.static_images):
         symbol = (
-            "zmk_nvp_svg_background"
-            if index == 0
-            else f"zmk_nvp_xml_static_{index}"
+            "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
         )
         c_lines.extend(
             [
@@ -574,11 +575,13 @@ def generate_sources(
         )
 
     for label in model.static_labels:
+        font = _static_label_font(label.font_size)
         c_lines.extend(
             [
                 "    {",
                 "        lv_obj_t *label = lv_label_create(screen);",
                 f"        lv_label_set_text(label, {_c_string(label.text)});",
+                f"        lv_obj_set_style_text_font(label, {font}, LV_PART_MAIN);",
                 f"        lv_obj_set_pos(label, {label.x}, {label.y});",
                 "        lv_obj_set_style_text_color(label, xml_foreground(), LV_PART_MAIN);",
                 "    }",

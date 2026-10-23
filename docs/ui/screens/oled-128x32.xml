@@ -1,26 +1,25 @@
-<!-- Migrated from docs/screens/oled-128x32.svg -->
+<!-- Compact 128x32 OLED status screen. -->
 <component>
   <view extends="lv_obj" width="128" height="32"
-        style_bg_color="0xffffff" scrollable="false">
-    <lv_image src="../assets/oled_bg.png" x="0" y="0" />
+        style_bg_color="0xffffff" style_pad_all="0" scrollable="false">
 
-    <lv_label text="L" x="2" y="0" />
-    <zmk_status_bar field="battery.left.percent" x="14" y="4" width="24" height="4" />
-    <zmk_status_text field="battery.left.percent" format="percent" x="44" y="10" font_size="12" />
+    <lv_label text="L" x="2" y="2" font_size="8" />
+    <zmk_status_text field="battery.left.percent" format="percent" x="12" y="11" font_size="8" />
+    <zmk_status_bar field="battery.left.percent" x="36" y="6" width="16" height="3" />
 
-    <lv_label text="R" x="2" y="12" />
-    <zmk_status_bar field="battery.right.percent" x="14" y="16" width="24" height="4" />
-    <zmk_status_text field="battery.right.percent" format="percent" x="44" y="22" font_size="12" />
-
-    <zmk_status_text field="output.selected" format="output-label" x="76" y="10" font_size="12" />
-    <lv_label text="LAYER" x="76" y="12" />
-    <zmk_status_text field="layer.index" x="116" y="23" font_size="12" />
+    <lv_label text="R" x="65" y="2" font_size="8" />
+    <zmk_status_text field="battery.right.percent" format="percent" x="75" y="11" font_size="8" />
+    <zmk_status_bar field="battery.right.percent" x="99" y="6" width="16" height="3" />
 
     <zmk_status_when field="display.half" test="equals" value="left">
-      <lv_label text="L" x="100" y="2" />
+      <lv_label text="L" x="120" y="2" font_size="8" />
     </zmk_status_when>
     <zmk_status_when field="display.half" test="equals" value="right">
-      <lv_label text="R" x="100" y="2" />
+      <lv_label text="R" x="120" y="2" font_size="8" />
     </zmk_status_when>
+
+    <zmk_status_text field="output.selected" format="output-label" x="2" y="26" font_size="8" />
+    <lv_label text="LAYER" x="63" y="18" font_size="8" />
+    <zmk_status_text field="layer.index" x="122" y="26" font_size="12" anchor="end" />
   </view>
 </component>

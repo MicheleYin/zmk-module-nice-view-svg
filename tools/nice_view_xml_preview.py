@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 if __package__:
-    from tools.nice_view_xml import load_catalog, validate_screen_text
+    from tools.nice_view_xml import validate_screen_text
     from tools.nice_view_xml_assets import preview_rgba_image
 else:
-    from nice_view_xml import load_catalog, validate_screen_text
+    from nice_view_xml import validate_screen_text
     from nice_view_xml_assets import preview_rgba_image
 
 ROLES = frozenset({"central", "peripheral"})
@@ -79,7 +77,11 @@ def preview_xml_text(
         raise ValueError("\n".join(errors))
 
     root = ET.fromstring(xml_text)
-    for element in list(root.iter()):
+    view = root.find(".//view")
+    screen_width = (
+        _coord(view, "width", PREVIEW_WIDTH) if view is not None else PREVIEW_WIDTH
+    )
+    for element in root.iter():
         field_id = element.get("field")
         if element.tag == "zmk_status_text" and field_id:
             field = fields[field_id]
@@ -88,21 +90,40 @@ def preview_xml_text(
                 element.attrib.clear()
                 element.set("hidden", "true")
                 continue
-            text = _format_value(values.get(field_id), field, element.get("format", "text"))
+            text = _format_value(
+                values.get(field_id), field, element.get("format", "text")
+            )
             attributes = {
                 name: value
                 for name, value in element.attrib.items()
-                if name not in {"field", "format", "font_size", "role"}
+                if name not in {"field", "format", "font_size", "role", "anchor"}
             }
-            font_size = _coord(element, "font_size", 11)
+            font_size = _coord(
+                element, "font_size", 11 if element.get("format") == "percent" else 10
+            )
+            x = _coord(element, "x")
+            anchor = element.get("anchor", "start")
+            alignment = "left"
+            if anchor == "middle":
+                x -= screen_width // 2
+                alignment = "center"
+            elif anchor == "end":
+                x -= screen_width
+                alignment = "right"
             element.tag = "lv_label"
             element.attrib.clear()
             element.attrib.update(attributes)
             element.set("text", text)
-            font = "lv_montserrat_20" if font_size >= 16 else (
-                "lv_montserrat_12" if font_size > 8 else "lv_montserrat_8"
-            )
-            element.set("style_text_font", font)
+            element.set("x", str(x))
+            element.set("y", str(_coord(element, "y") - font_size))
+            element.set("width", str(screen_width))
+            element.set("height", str(max(font_size + 2, 10)))
+            element.set("style_text_align", alignment)
+            element.set("style_text_font", _preview_font(font_size, monospace=True))
+        elif element.tag == "lv_label" and element.get("text") is not None:
+            font_size = _coord(element, "font_size", 10)
+            element.attrib.pop("font_size", None)
+            element.set("style_text_font", _preview_font(font_size))
         elif element.tag == "zmk_status_bar" and field_id:
             field = fields[field_id]
             percent = values.get(field_id, 0)
@@ -125,7 +146,9 @@ def preview_xml_text(
             field = fields[field_id]
             value = values.get(field_id, _default_value(field))
             if not _matches(field, element, value):
-                parent = next((node for node in root.iter() if element in list(node)), None)
+                parent = next(
+                    (node for node in root.iter() if element in list(node)), None
+                )
                 if parent is not None:
                     parent.remove(element)
                 continue
@@ -134,7 +157,11 @@ def preview_xml_text(
                 continue
             child = children[0]
             child.attrib.update(
-                {key: value for key, value in element.attrib.items() if key not in child.attrib}
+                {
+                    key: value
+                    for key, value in element.attrib.items()
+                    if key not in child.attrib
+                }
             )
             element.tag = child.tag
             element.attrib.clear()
@@ -163,6 +190,14 @@ def _coord(element: ET.Element, name: str, default: int = 0) -> int:
     if value is None or not re.fullmatch(r"-?\d+", value):
         return default
     return int(value)
+
+
+def _preview_font(font_size: int, monospace: bool = False) -> str:
+    if font_size >= 16:
+        return "lv_montserrat_20"
+    if font_size > 8:
+        return "lv_montserrat_12"
+    return "lv_unscii_8" if monospace else "lv_montserrat_8"
 
 
 def _is_hidden(element: ET.Element) -> bool:
@@ -239,12 +274,24 @@ def preview_png(
 ) -> None:
     root = ET.fromstring(xml_text)
     view = root.find("view")
-    width = int(view.get("width", str(PREVIEW_WIDTH))) if view is not None else PREVIEW_WIDTH
+    width = (
+        int(view.get("width", str(PREVIEW_WIDTH)))
+        if view is not None
+        else PREVIEW_WIDTH
+    )
     height = (
-        int(view.get("height", str(PREVIEW_HEIGHT))) if view is not None else PREVIEW_HEIGHT
+        int(view.get("height", str(PREVIEW_HEIGHT)))
+        if view is not None
+        else PREVIEW_HEIGHT
     )
 
-    wasm_js = Path(__file__).resolve().parents[1] / "build" / "lvgl_wasm" / "web" / "preview.js"
+    wasm_js = (
+        Path(__file__).resolve().parents[1]
+        / "build"
+        / "lvgl_wasm"
+        / "web"
+        / "preview.js"
+    )
     if wasm_js.exists():
         _preview_with_wasm(xml_text, output_path, width, height, screen_path)
         return
@@ -283,7 +330,12 @@ def preview_png(
         draw.text((x, y), text, fill=0, font=font)
     for x, y, bar_width, bar_height in bars:
         draw.rectangle(
-            (x, y, min(width - 1, x + bar_width - 1), min(height - 1, y + bar_height - 1)),
+            (
+                x,
+                y,
+                min(width - 1, x + bar_width - 1),
+                min(height - 1, y + bar_height - 1),
+            ),
             fill=0,
         )
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -348,7 +400,9 @@ def _preview_with_wasm(
         foreground_mask = foreground.point(lambda pixel: 255 if pixel < 128 else 0)
         background.paste((0, 0, 0, 255), (0, 0, width, height), foreground_mask)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        background.convert("1", dither=Image.Dither.NONE).save(output_path, format="PNG")
+        background.convert("1", dither=Image.Dither.NONE).save(
+            output_path, format="PNG"
+        )
     finally:
         Path(xml_path).unlink(missing_ok=True)
         rendered_path.unlink(missing_ok=True)

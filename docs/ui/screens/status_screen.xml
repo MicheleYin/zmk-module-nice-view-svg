@@ -1,75 +1,60 @@
-<!-- Migrated from docs/screens/default.svg (minimal Nice!View status). -->
+<!-- Compact 160x68 Nice!View status screen. -->
 <component>
   <view extends="lv_obj" width="160" height="68"
-        style_bg_color="0xffffff" scrollable="false">
+        style_bg_color="0xffffff" style_pad_all="0" scrollable="false">
     <lv_image src="../assets/default_bg.png" x="0" y="0" />
 
-    <!-- Left battery -->
-    <lv_label text="L" x="4" y="2" />
-    <zmk_status_bar field="battery.left.percent" x="22" y="7" width="15" height="4" />
+    <zmk_status_bar field="battery.left.percent" x="6" y="7" width="12" height="3" />
+    <lv_label text="L" x="24" y="2" font_size="8" />
+    <zmk_status_text field="battery.left.percent" format="percent"
+                     x="35" y="12" font_size="8" />
     <zmk_status_when field="battery.left.charge" test="equals" value="charging">
-      <lv_image src="../assets/bolt.svg" x="27" y="4" width="8" height="10" />
+      <lv_image src="../assets/bolt.svg" x="57" y="2" width="7" height="9" />
     </zmk_status_when>
-    <zmk_status_text field="battery.left.percent" format="percent" x="48" y="3" font_size="11" />
 
-    <!-- Right battery -->
-    <lv_label text="R" x="4" y="17" />
-    <zmk_status_bar field="battery.right.percent" x="22" y="22" width="15" height="4" />
+    <zmk_status_bar field="battery.right.percent" x="6" y="20" width="12" height="3" />
+    <lv_label text="R" x="24" y="15" font_size="8" />
+    <zmk_status_text field="battery.right.percent" format="percent"
+                     x="35" y="26" font_size="8" />
     <zmk_status_when field="battery.right.charge" test="equals" value="charging">
-      <lv_image src="../assets/bolt.svg" x="27" y="19" width="8" height="10" />
+      <lv_image src="../assets/bolt.svg" x="57" y="15" width="7" height="9" />
     </zmk_status_when>
-    <zmk_status_text field="battery.right.percent" format="percent" x="48" y="18" font_size="11" />
 
-    <!-- Layer -->
-    <lv_label text="LAYER" x="90" y="8" />
-    <zmk_status_text field="layer.index" x="140" y="20" font_size="16" />
+    <lv_label text="LAYER" x="98" y="3" font_size="8" />
+    <zmk_status_text field="layer.index" x="155" y="26" font_size="12" anchor="end" />
 
-    <!-- BLE profiles 1-5: active tile + connected mark -->
-    <lv_label text="1" x="41" y="40" />
+    <lv_label text="1" x="42" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="0">
       <lv_image src="../assets/profile_active.svg" x="35" y="37" width="19" height="15" />
     </zmk_status_when>
-    <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="0">
-      <lv_label text="*" x="48" y="37" />
-    </zmk_status_when>
 
-    <lv_label text="2" x="66" y="40" />
+    <lv_label text="2" x="67" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="1">
       <lv_image src="../assets/profile_active.svg" x="60" y="37" width="19" height="15" />
     </zmk_status_when>
-    <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="1">
-      <lv_label text="*" x="73" y="37" />
-    </zmk_status_when>
 
-    <lv_label text="3" x="91" y="40" />
+    <lv_label text="3" x="92" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="2">
       <lv_image src="../assets/profile_active.svg" x="85" y="37" width="19" height="15" />
     </zmk_status_when>
-    <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="2">
-      <lv_label text="*" x="98" y="37" />
-    </zmk_status_when>
 
-    <lv_label text="4" x="116" y="40" />
+    <lv_label text="4" x="117" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="3">
       <lv_image src="../assets/profile_active.svg" x="110" y="37" width="19" height="15" />
     </zmk_status_when>
-    <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="3">
-      <lv_label text="*" x="123" y="37" />
-    </zmk_status_when>
 
-    <lv_label text="5" x="141" y="40" />
+    <lv_label text="5" x="142" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="4">
       <lv_image src="../assets/profile_active.svg" x="135" y="37" width="19" height="15" />
     </zmk_status_when>
-    <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="4">
-      <lv_label text="*" x="148" y="37" />
-    </zmk_status_when>
 
-    <!-- Footer -->
-    <zmk_status_text field="output.selected" format="output-label" x="4" y="66" font_size="10" />
-    <lv_label text="SPLIT" x="105" y="56" />
+    <zmk_status_text field="output.selected" format="output-label" x="4" y="61" font_size="8" />
+    <lv_label text="LINK" x="104" y="53" font_size="8" />
     <zmk_status_when field="split.connected" test="equals" value="true">
-      <lv_label text="o" x="149" y="56" />
+      <lv_label text="+" x="147" y="53" font_size="8" />
+    </zmk_status_when>
+    <zmk_status_when field="split.connected" test="equals" value="false">
+      <lv_label text="-" x="147" y="53" font_size="8" />
     </zmk_status_when>
   </view>
 </component>

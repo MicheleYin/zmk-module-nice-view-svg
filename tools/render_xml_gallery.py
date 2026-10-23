@@ -30,11 +30,6 @@ PAIRS = (
         SCREENS / "oled-128x32.xml",
         SCREENS / "oled-128x32-mirror.xml",
     ),
-    (
-        "widget-showcase",
-        SAMPLES / "widget-showcase.xml",
-        SAMPLES / "widget-showcase.xml",
-    ),
 )
 
 

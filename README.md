@@ -25,7 +25,6 @@ screen with central and peripheral status values.
 | Default | <img src="docs/ui/gallery/default-left.png" alt="Default central screen" width="320"> | <img src="docs/ui/gallery/default-right.png" alt="Default peripheral screen" width="320"> |
 | Day / night | <img src="docs/ui/gallery/day-night-left.png" alt="Day theme" width="320"> | <img src="docs/ui/gallery/day-night-right.png" alt="Night theme" width="320"> |
 | OLED / mirrored OLED | <img src="docs/ui/gallery/oled-mirror-left.png" alt="128 by 32 OLED" width="320"> | <img src="docs/ui/gallery/oled-mirror-right.png" alt="Mirrored 128 by 32 OLED" width="320"> |
-| Widget showcase | <img src="docs/ui/gallery/widget-showcase-left.png" alt="Widget showcase central" width="320"> | <img src="docs/ui/gallery/widget-showcase-right.png" alt="Widget showcase peripheral" width="320"> |
 
 Build the LVGL renderer and regenerate the gallery after changing screens, widgets,
 or artwork:

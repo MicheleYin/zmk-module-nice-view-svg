@@ -26,7 +26,7 @@ validation, preview, and C generation.
 
 The widget library contains battery, layer, host-output, BLE profile-tile,
 split-link, and split-indicator fragments. See `docs/ui/samples/` for composed
-160×68 and 128×32 layouts and the complete widget showcase.
+160×68 and 128×32 screen examples.
 
 ## Dynamic widgets
 

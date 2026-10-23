@@ -31,7 +31,7 @@ config ZMK_SVG_SCREEN
       The screen sources must be regenerated when the XML source changes.
 
     choice ZMK_SVG_THEME
-      prompt "Nice!View screen theme"
+      prompt "Nice!View screen side"
       depends on ZMK_SVG_SCREEN
       default ZMK_SVG_THEME_AUTO
 
@@ -39,10 +39,10 @@ config ZMK_SVG_SCREEN
       bool "Automatic (match display resolution)"
 
     config ZMK_SVG_THEME_LEFT
-      bool "Left"
+      bool "Left layout"
 
     config ZMK_SVG_THEME_RIGHT
-      bool "Right"
+      bool "Right layout"
 
     endchoice
 

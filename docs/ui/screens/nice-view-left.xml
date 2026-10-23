@@ -1,4 +1,4 @@
-<!-- Compact 160x68 Nice!View status screen. -->
+<!-- Left-side 160x68 Nice!View status screen. -->
 <component>
   <view extends="lv_obj" width="160" height="68"
         style_bg_color="0xffffff" style_pad_all="0" scrollable="false">
@@ -27,22 +27,18 @@
     <zmk_status_when field="ble.active_profile" test="equals" value="0">
       <lv_image src="../assets/profile_active.svg" x="35" y="37" width="19" height="15" />
     </zmk_status_when>
-
     <lv_label text="2" x="67" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="1">
       <lv_image src="../assets/profile_active.svg" x="60" y="37" width="19" height="15" />
     </zmk_status_when>
-
     <lv_label text="3" x="92" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="2">
       <lv_image src="../assets/profile_active.svg" x="85" y="37" width="19" height="15" />
     </zmk_status_when>
-
     <lv_label text="4" x="117" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="3">
       <lv_image src="../assets/profile_active.svg" x="110" y="37" width="19" height="15" />
     </zmk_status_when>
-
     <lv_label text="5" x="142" y="40" font_size="8" />
     <zmk_status_when field="ble.active_profile" test="equals" value="4">
       <lv_image src="../assets/profile_active.svg" x="135" y="37" width="19" height="15" />
@@ -55,6 +51,9 @@
     </zmk_status_when>
     <zmk_status_when field="split.connected" test="equals" value="false">
       <lv_label text="-" x="147" y="53" font_size="8" />
+    </zmk_status_when>
+    <zmk_status_when field="display.half" test="equals" value="left">
+      <lv_label text="L" x="149" y="2" font_size="8" />
     </zmk_status_when>
   </view>
 </component>

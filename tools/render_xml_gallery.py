@@ -18,17 +18,19 @@ else:
 
 ROOT = Path(__file__).resolve().parents[1]
 SCREENS = ROOT / "docs" / "ui" / "screens"
-SAMPLES = ROOT / "docs" / "ui" / "samples"
 DEFAULT_OUTPUT = ROOT / "docs" / "ui" / "gallery"
 WASM_RENDERER = ROOT / "build" / "lvgl_wasm" / "web" / "preview.js"
 
 PAIRS = (
-    ("default", SCREENS / "status_screen.xml", SCREENS / "status_screen.xml"),
-    ("day-night", SCREENS / "day.xml", SCREENS / "night.xml"),
     (
-        "oled-mirror",
-        SCREENS / "oled-128x32.xml",
-        SCREENS / "oled-128x32-mirror.xml",
+        "nice-view",
+        SCREENS / "nice-view-left.xml",
+        SCREENS / "nice-view-right.xml",
+    ),
+    (
+        "oled",
+        SCREENS / "oled-left.xml",
+        SCREENS / "oled-right.xml",
     ),
 )
 

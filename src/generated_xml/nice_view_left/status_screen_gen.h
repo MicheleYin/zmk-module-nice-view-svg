@@ -11,8 +11,8 @@
 
 #define ZMK_NVP_SVG_WIDTH 160
 #define ZMK_NVP_SVG_HEIGHT 68
-#define ZMK_NVP_SVG_BINDING_COUNT 14
-#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT 2
+#define ZMK_NVP_SVG_BINDING_COUNT 16
+#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT 7
 #define ZMK_NVP_XML_HAS_BACKGROUND 1
 
 enum zmk_nvp_svg_renderer {
@@ -43,6 +43,6 @@ struct zmk_nvp_svg_binding {
     uint8_t match_bit;
 };
 
-extern const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[14];
+extern const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[16];
 extern const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[];
 void zmk_nvp_xml_layout_create(lv_obj_t *screen);

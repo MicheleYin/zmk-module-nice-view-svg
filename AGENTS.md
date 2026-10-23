@@ -65,12 +65,12 @@ uv run --isolated --with-requirements tools/requirements.txt python -m unittest
 
 # XML validate / generate / live (example: default theme)
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml
+  python tools/nice_view_xml.py validate docs/ui/screens/nice-view-left.xml
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml.py generate docs/ui/screens/status_screen.xml \
-  --output-dir src/generated_xml/default
+  python tools/nice_view_xml.py generate docs/ui/screens/nice-view-left.xml \
+  --output-dir src/generated_xml/nice_view_left
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml_live.py docs/ui/screens/status_screen.xml
+  python tools/nice_view_xml_live.py docs/ui/screens/nice-view-left.xml
 
 # Paired LVGL-native PNG gallery
 uv run --isolated --with-requirements tools/requirements.txt \
@@ -85,11 +85,10 @@ west zmk-build tests/zmk-config
 
 | Screen | `--output-dir` |
 | --- | --- |
-| `docs/ui/screens/status_screen.xml` | `src/generated_xml/default` |
-| `docs/ui/screens/day.xml` | `src/generated_xml/day` |
-| `docs/ui/screens/night.xml` | `src/generated_xml/night` |
-| `docs/ui/screens/oled-128x32.xml` | `src/generated_xml/oled` |
-| `docs/ui/screens/oled-128x32-mirror.xml` | `src/generated_xml/oled_mirror` |
+| `docs/ui/screens/nice-view-left.xml` | `src/generated_xml/nice_view_left` |
+| `docs/ui/screens/nice-view-right.xml` | `src/generated_xml/nice_view_right` |
+| `docs/ui/screens/oled-left.xml` | `src/generated_xml/oled_left` |
+| `docs/ui/screens/oled-right.xml` | `src/generated_xml/oled_right` |
 
 ## Firmware Kconfig (XML)
 
@@ -98,8 +97,8 @@ CONFIG_ZMK_SVG=y
 CONFIG_ZMK_SVG_SCREEN=y
 ```
 
-Theme selection is automatic from display dimensions. Set
-`CONFIG_ZMK_SVG_RIGHT_HALF=y` on the mirrored 128x32 display.
+Screen selection is automatic from display dimensions and physical half. Set
+`CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right half.
 
 ## Codacy / local analysis
 

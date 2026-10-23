@@ -322,7 +322,9 @@ class NiceViewXmlValidationTests(unittest.TestCase):
 
     def test_paired_preview_merges_screen_bindings_and_dimensions(self):
         screens = Path(__file__).parent / "docs" / "ui" / "screens"
-        config = build_paired_preview_config(screens / "day.xml", screens / "night.xml")
+        config = build_paired_preview_config(
+            screens / "nice-view-left.xml", screens / "nice-view-right.xml"
+        )
 
         self.assertTrue(config["paired"])
         self.assertEqual(
@@ -336,16 +338,49 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             "battery.right.percent", {field["id"] for field in config["bindings"]}
         )
 
+    def test_oled_left_and_right_keep_the_same_layout(self):
+        screens = Path(__file__).parent / "docs" / "ui" / "screens"
+        left = ET.parse(screens / "oled-left.xml").getroot()
+        right = ET.parse(screens / "oled-right.xml").getroot()
+
+        for field_id in ("output.selected", "layer.index"):
+            left_binding = left.find(f".//zmk_status_text[@field='{field_id}']")
+            right_binding = right.find(f".//zmk_status_text[@field='{field_id}']")
+            self.assertIsNotNone(left_binding)
+            self.assertIsNotNone(right_binding)
+            self.assertEqual(
+                (left_binding.get("x"), left_binding.get("y")),
+                (right_binding.get("x"), right_binding.get("y")),
+            )
+
+    def test_firmware_selector_routes_all_four_screen_outputs(self):
+        source_root = Path(__file__).parent / "src"
+        header_selector = (source_root / "xml_screen.c").read_text()
+        source_selector = (source_root / "generated_xml_screen.c").read_text()
+
+        for theme in (
+            "nice_view_left",
+            "nice_view_right",
+            "oled_left",
+            "oled_right",
+        ):
+            with self.subTest(theme=theme):
+                self.assertIn(
+                    f'generated_xml/{theme}/status_screen_gen.h', header_selector
+                )
+                self.assertIn(
+                    f'generated_xml/{theme}/status_screen_gen.c', source_selector
+                )
+
     def test_ui_screens_validate_and_embed_background(self):
         from tools.nice_view_xml import validate_screen
 
         screens = Path(__file__).parent / "docs" / "ui" / "screens"
         for name in (
-            "status_screen.xml",
-            "day.xml",
-            "night.xml",
-            "oled-128x32.xml",
-            "oled-128x32-mirror.xml",
+            "nice-view-left.xml",
+            "nice-view-right.xml",
+            "oled-left.xml",
+            "oled-right.xml",
         ):
             path = screens / name
             errors = validate_screen(path)
@@ -355,7 +390,7 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             Path(__file__).parent
             / "src"
             / "generated_xml"
-            / "default"
+            / "nice_view_left"
             / "status_screen_gen.c"
         )
         header = generated.with_suffix(".h").read_text()
@@ -371,11 +406,10 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         screens = Path(__file__).parent / "docs" / "ui" / "screens"
         generated_root = Path(__file__).parent / "src" / "generated_xml"
         themes = {
-            "default": "status_screen.xml",
-            "day": "day.xml",
-            "night": "night.xml",
-            "oled": "oled-128x32.xml",
-            "oled_mirror": "oled-128x32-mirror.xml",
+            "nice_view_left": "nice-view-left.xml",
+            "nice_view_right": "nice-view-right.xml",
+            "oled_left": "oled-left.xml",
+            "oled_right": "oled-right.xml",
         }
         for theme, screen_name in themes.items():
             with self.subTest(theme=theme), tempfile.TemporaryDirectory() as temp_dir:

@@ -74,19 +74,19 @@ Conditional sprites under `zmk_status_when` should set `width` and `height` (pla
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml
+  python tools/nice_view_xml.py validate docs/ui/screens/nice-view-left.xml
 
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml.py generate docs/ui/screens/status_screen.xml \
-  --output-dir src/generated_xml/default
+  python tools/nice_view_xml.py generate docs/ui/screens/nice-view-left.xml \
+  --output-dir src/generated_xml/nice_view_left
 
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml_live.py docs/ui/screens/status_screen.xml
+  python tools/nice_view_xml_live.py docs/ui/screens/nice-view-left.xml
 
-# Compare separate left and right XML screens side by side
+# Compare the left and right Nice!View XML screens side by side
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_xml_live.py docs/ui/screens/day.xml \
-  --right-screen docs/ui/screens/night.xml
+  python tools/nice_view_xml_live.py docs/ui/screens/nice-view-left.xml \
+  --right-screen docs/ui/screens/nice-view-right.xml
 ```
 
 Paired live preview defaults to central data on the left and peripheral data on the
@@ -114,12 +114,11 @@ CONFIG_ZMK_SVG=y
 CONFIG_ZMK_SVG_SCREEN=y
 ```
 
-The automatic theme uses the selected display's dimensions. On a 128×32 OLED,
-set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the mirrored half when needed.
+The automatic screen uses the selected display's dimensions and physical side.
+Set `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the right half.
 
-Left/right Nice!View themes use `CONFIG_ZMK_SVG_THEME_LEFT=y` or
-`CONFIG_ZMK_SVG_THEME_RIGHT=y` with the matching `docs/ui/screens/day.xml` or
-`night.xml` generated into `src/generated_xml/day` or `night`.
+Nice!View side overrides use `CONFIG_ZMK_SVG_THEME_LEFT=y` or
+`CONFIG_ZMK_SVG_THEME_RIGHT=y`; automatic selection uses the physical side.
 
 ## Migration Notes
 

@@ -193,14 +193,17 @@
     let renderTimer;
 
     function selectedRoles() {
+      if (config.paired) return ["left", "right"];
       return roleSelect.value === "both" ? ["central", "peripheral"] : [roleSelect.value];
     }
 
     function primaryRole() {
+      if (config.paired) return config.panelRoles.left;
       return roleSelect.value === "both" ? "central" : roleSelect.value;
     }
 
     function rolesForField(field) {
+      if (config.paired) return field.roles;
       if (roleSelect.value === "both") {
         return field.roles.filter(role => role === "central" || role === "peripheral");
       }
@@ -391,11 +394,11 @@
     }
 
     function updateScreenLayout() {
-      const both = roleSelect.value === "both";
+      const both = config.paired || roleSelect.value === "both";
       screensRoot.classList.toggle("both", both);
       for (const panel of screensRoot.querySelectorAll(".screen-panel")) {
         const role = panel.dataset.role;
-        panel.hidden = !(both || role === roleSelect.value);
+        panel.hidden = config.paired ? false : !(both || role === roleSelect.value);
       }
     }
 
@@ -413,11 +416,13 @@
       renderTimer = setTimeout(renderPreview, 90);
     }
 
-    async function renderRole(role, signal) {
+    async function renderRole(panelName, signal) {
+      const role = config.paired ? config.panelRoles[panelName] : panelName;
       const response = await fetch("/render", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          panel: config.paired ? panelName : undefined,
           role,
           values: config.values[role],
           inversionMode: inversionSelect.value,
@@ -437,15 +442,16 @@
           roles.map(role => renderRole(role, requestController.signal)),
         );
         for (let index = 0; index < roles.length; index++) {
-          const role = roles[index];
-          const panel = screensRoot.querySelector(`.screen-panel[data-role="${role}"]`);
+          const panelName = roles[index];
+          const panel = screensRoot.querySelector(`.screen-panel[data-role="${panelName}"]`);
           const image = panel.querySelector(".preview");
           image.src = urls[index];
-          image.width = config.width;
-          image.height = config.height;
-          const previous = activeUrls.get(role);
+          const screenConfig = config.paired ? config.screens[panelName] : config;
+          image.width = screenConfig.width;
+          image.height = screenConfig.height;
+          const previous = activeUrls.get(panelName);
           if (previous) URL.revokeObjectURL(previous);
-          activeUrls.set(role, urls[index]);
+          activeUrls.set(panelName, urls[index]);
         }
         status.textContent = "Ready";
       } catch (error) {
@@ -459,11 +465,28 @@
       config = await response.json();
       document.title = `${config.title} · Nice!view Live Preview`;
       document.querySelector("#source").textContent = config.title;
-      for (const screen of screensRoot.querySelectorAll(".screen")) {
-        screen.style.aspectRatio = `${config.width} / ${config.height}`;
+      const panels = [...screensRoot.querySelectorAll(".screen-panel")];
+      if (config.paired) {
+        roleSelect.closest("label").hidden = true;
+        panels[0].dataset.role = "left";
+        panels[1].dataset.role = "right";
+        panels[0].querySelector(".screen-label").textContent = "Left";
+        panels[1].querySelector(".screen-label").textContent = "Right";
+        panels[0].querySelector(".preview").alt = "Left screen preview";
+        panels[1].querySelector(".preview").alt = "Right screen preview";
+        roleSelect.value = "both";
+        roleSelect.disabled = true;
       }
-      document.querySelector("#dimensions").textContent =
-        `${config.width} × ${config.height} px · 1-bit monochrome`;
+      for (const panel of panels) {
+        const screen = panel.querySelector(".screen");
+        const panelConfig = config.paired
+          ? config.screens[panel.dataset.role]
+          : config;
+        screen.style.aspectRatio = `${panelConfig.width} / ${panelConfig.height}`;
+      }
+      document.querySelector("#dimensions").textContent = config.paired
+        ? `Left ${config.screens.left.width} × ${config.screens.left.height} px · Right ${config.screens.right.width} × ${config.screens.right.height} px · 1-bit monochrome`
+        : `${config.width} × ${config.height} px · 1-bit monochrome`;
       inversionSelect.value = config.initialInversionMode;
       inversionSelect.addEventListener("change", updateScreenPolarity);
       updateScreenPolarity();

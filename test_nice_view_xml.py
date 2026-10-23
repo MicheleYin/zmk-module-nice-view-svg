@@ -15,7 +15,7 @@ from tools.nice_view_xml_assets import (
 )
 from tools.nice_view_xml_codegen import write_generated
 from tools.nice_view_xml_components import expand_screen_file
-from tools.nice_view_xml_live import build_preview_config
+from tools.nice_view_xml_live import build_paired_preview_config, build_preview_config
 from tools.nice_view_xml_preview import preview_xml_text
 
 
@@ -205,6 +205,18 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                     xml, FIELDS, {"split.connected": value}, "central"
                 )
                 self.assertIn(f'text="{expected}"', rendered)
+
+    def test_paired_preview_merges_screen_bindings_and_dimensions(self):
+        screens = Path(__file__).parent / "docs" / "ui" / "screens"
+        config = build_paired_preview_config(
+            screens / "day.xml", screens / "night.xml"
+        )
+
+        self.assertTrue(config["paired"])
+        self.assertEqual(config["panelRoles"], {"left": "central", "right": "peripheral"})
+        self.assertEqual(config["screens"]["left"]["width"], 160)
+        self.assertIn("battery.left.percent", {field["id"] for field in config["bindings"]})
+        self.assertIn("battery.right.percent", {field["id"] for field in config["bindings"]})
 
     def test_ui_screens_validate_and_embed_background(self):
         from tools.nice_view_xml import validate_screen

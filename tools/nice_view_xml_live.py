@@ -136,9 +136,71 @@ def build_preview_config(
     }
 
 
+def build_paired_preview_config(
+    left_screen: Path,
+    right_screen: Path,
+    left_role: str = "central",
+    right_role: str = "peripheral",
+    legacy_inverted: bool = False,
+) -> dict[str, Any]:
+    left = build_preview_config(left_screen, left_role, legacy_inverted)
+    right = build_preview_config(right_screen, right_role, legacy_inverted)
+    bindings: dict[str, dict[str, Any]] = {}
+    for config in (left, right):
+        for binding in config["bindings"]:
+            merged = bindings.setdefault(
+                binding["id"],
+                {**binding, "roles": set(), "renderers": set()},
+            )
+            merged["roles"].update(binding["roles"])
+            merged["renderers"].update(binding["renderers"])
+
+    descriptors = []
+    for binding in bindings.values():
+        binding["roles"] = sorted(binding["roles"])
+        binding["renderers"] = sorted(binding["renderers"])
+        descriptors.append(binding)
+
+    values = {}
+    for role in ROLES:
+        values[role] = {}
+        for field_id in bindings:
+            if field_id in left["values"][role]:
+                value = left["values"][role][field_id]
+            elif field_id in right["values"][role]:
+                value = right["values"][role][field_id]
+            else:
+                value = _default_value(bindings[field_id])
+            values[role][field_id] = value
+
+    return {
+        "title": f"{left_screen.name} + {right_screen.name}",
+        "paired": True,
+        "initialRole": "both",
+        "initialInversionMode": "legacy",
+        "legacyInverted": legacy_inverted,
+        "panelRoles": {"left": left_role, "right": right_role},
+        "screens": {
+            "left": {
+                "screenPath": left["screenPath"],
+                "width": left["width"],
+                "height": left["height"],
+            },
+            "right": {
+                "screenPath": right["screenPath"],
+                "width": right["width"],
+                "height": right["height"],
+            },
+        },
+        "bindings": descriptors,
+        "values": values,
+    }
+
+
 class LivePreviewServer(ThreadingHTTPServer):
     preview_config: dict[str, Any]
     xml_text: str
+    panel_xml_texts: dict[str, str]
     fields: dict[str, Any]
 
 
@@ -173,20 +235,32 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
                 raise ValueError("invalid request size")
             request = json.loads(self.rfile.read(length))
             role = request.get("role")
+            panel = request.get("panel")
             values = request.get("values")
             inversion_mode = request.get("inversionMode", "legacy")
             if role not in ROLES or not isinstance(values, dict):
                 raise ValueError("request needs a role and values object")
+            if self.server.preview_config.get("paired"):
+                if panel not in {"left", "right"}:
+                    raise ValueError("paired preview needs a left or right panel")
+                if role != self.server.preview_config["panelRoles"][panel]:
+                    raise ValueError("role does not match the selected preview panel")
+                xml_text = self.server.panel_xml_texts[panel]
+                screen_path_value = self.server.preview_config["screens"][panel][
+                    "screenPath"
+                ]
+            else:
+                xml_text = self.server.xml_text
+                screen_path_value = self.server.preview_config.get("screenPath")
             if inversion_mode not in {"legacy", "white-background"}:
                 raise ValueError("unknown inversion mode")
             expanded = preview_xml_text(
-                self.server.xml_text,
+                xml_text,
                 self.server.fields,
                 values,
                 role,
             )
             output = Path("/tmp") / f"nice_view_xml_live_{id(self)}.png"
-            screen_path_value = self.server.preview_config.get("screenPath")
             screen_path = Path(screen_path_value) if screen_path_value else None
             preview_png(expanded, output, screen_path)
             png_bytes = output.read_bytes()
@@ -221,8 +295,15 @@ def _invert_png(png_bytes: bytes) -> bytes:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("screen", type=Path, help="component XML screen to preview")
+    parser.add_argument("screen", type=Path, help="screen XML; left screen in paired mode")
+    parser.add_argument(
+        "--right-screen",
+        type=Path,
+        help="also preview this XML screen beside the left screen",
+    )
     parser.add_argument("--role", choices=sorted(ROLES), default="central")
+    parser.add_argument("--left-role", choices=sorted(ROLES), default="central")
+    parser.add_argument("--right-role", choices=sorted(ROLES), default="peripheral")
     parser.add_argument(
         "--legacy-inverted",
         action="store_true",
@@ -233,13 +314,29 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     try:
-        config = build_preview_config(
-            arguments.screen, arguments.role, arguments.legacy_inverted
-        )
+        if arguments.right_screen:
+            config = build_paired_preview_config(
+                arguments.screen,
+                arguments.right_screen,
+                arguments.left_role,
+                arguments.right_role,
+                arguments.legacy_inverted,
+            )
+        else:
+            config = build_preview_config(
+                arguments.screen, arguments.role, arguments.legacy_inverted
+            )
         fields = load_catalog(TOOLS_DIR / "status_fields.json")
         server = LivePreviewServer(("127.0.0.1", arguments.port), LivePreviewHandler)
         server.preview_config = config
-        server.xml_text = expand_screen_file(arguments.screen)
+        if config.get("paired"):
+            server.panel_xml_texts = {
+                "left": expand_screen_file(arguments.screen),
+                "right": expand_screen_file(arguments.right_screen),
+            }
+            server.xml_text = ""
+        else:
+            server.xml_text = expand_screen_file(arguments.screen)
         server.fields = fields
     except (OSError, TypeError, ValueError) as error:
         print(error)

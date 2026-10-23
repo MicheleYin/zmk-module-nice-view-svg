@@ -1,7 +1,13 @@
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
 from tools.nice_view_xml import load_catalog, validate_screen_text
+from tools.nice_view_xml_assets import (
+    export_static_svg_background,
+    monochrome_pixels_from_png,
+)
 from tools.nice_view_xml_codegen import write_generated
 
 
@@ -17,6 +23,24 @@ def make_screen(body: str = "", width: int = 160, height: int = 68) -> str:
 
 
 class NiceViewXmlValidationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("rsvg-convert"), "rsvg-convert is required")
+    def test_background_export_removes_svg_text(self):
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8">'
+            '<rect width="16" height="8" fill="white"/>'
+            '<text x="0" y="7" fill="black">DUPLICATE</text></svg>'
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "screen.svg"
+            output = Path(temp_dir) / "background.png"
+            source.write_text(svg)
+
+            export_static_svg_background(source, output)
+            dimensions, pixels = monochrome_pixels_from_png(output.read_bytes())
+
+        self.assertEqual(dimensions, (16, 8))
+        self.assertEqual(set(pixels), {1})
+
     def test_authored_example_validates_for_its_panel(self):
         errors = validate_screen_text(
             XML_EXAMPLE.read_text(), FIELDS, expected_dimensions=(160, 68)
@@ -100,8 +124,6 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         )
 
     def test_generate_writes_binding_table(self):
-        import tempfile
-
         xml = make_screen(
             '<zmk_status_text field="layer.index" x="4" y="4"/>'
             '<zmk_status_bar field="battery.central.percent" x="10" y="20" '

@@ -20,6 +20,11 @@ def _load_pillow():
     return Image
 
 
+def _hard_threshold_luma(value: int, threshold: int = 128) -> int:
+    """Map grayscale to binary without dithering (0=black/fg, 1=white/bg)."""
+    return 0 if value < threshold else 1
+
+
 def monochrome_pixels_from_png(data: bytes) -> tuple[tuple[int, int], list[int]]:
     Image = _load_pillow()
     with Image.open(BytesIO(data)) as source:
@@ -27,7 +32,9 @@ def monochrome_pixels_from_png(data: bytes) -> tuple[tuple[int, int], list[int]]
         background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
         background.alpha_composite(rgba)
         grayscale = background.convert("L")
-        pixels = [0 if value < 128 else 1 for value in grayscale.getdata()]
+        pixels = [
+            _hard_threshold_luma(value) for value in grayscale.getdata()
+        ]
         return grayscale.size, pixels
 
 
@@ -68,6 +75,8 @@ def pack_i2_png(
             rgba = rgba.crop((x, y, x + width, y + height))
         else:
             width, height = rgba.size
+        # Hard snap only: no dither. Semi-transparent AA fringe from rsvg becomes
+        # transparent (<128) or solid fg/bg — never a third gray level in the bitmap.
         pixels = []
         for red, green, blue, alpha in rgba.getdata():
             if alpha < 128:
@@ -112,14 +121,20 @@ def load_png_or_svg_bytes(
         Image = _load_pillow()
         with Image.open(BytesIO(data)) as image:
             rgba = image.convert("RGBA")
+            # Nearest-neighbor only — bilinear resize creates gray edge fringes.
+            resample = Image.Resampling.NEAREST
             if width is not None and height is not None:
-                rgba = rgba.resize((width, height))
+                rgba = rgba.resize((width, height), resample=resample)
             elif width is not None:
                 ratio = width / rgba.width
-                rgba = rgba.resize((width, max(1, int(rgba.height * ratio))))
+                rgba = rgba.resize(
+                    (width, max(1, int(rgba.height * ratio))), resample=resample
+                )
             elif height is not None:
                 ratio = height / rgba.height
-                rgba = rgba.resize((max(1, int(rgba.width * ratio)), height))
+                rgba = rgba.resize(
+                    (max(1, int(rgba.width * ratio)), height), resample=resample
+                )
             output = BytesIO()
             rgba.save(output, format="PNG")
             return output.getvalue()
@@ -172,7 +187,8 @@ def export_static_svg_background(svg_path: Path, png_path: Path) -> Path:
         )
 
     for element in list(root.iter()):
-        if not is_dynamic(element):
+        is_svg_text = element.tag.rsplit("}", 1)[-1] == "text"
+        if not is_svg_text and not is_dynamic(element):
             continue
         parent = parents.get(element)
         if parent is None:
@@ -202,7 +218,8 @@ def export_static_svg_background(svg_path: Path, png_path: Path) -> Path:
             )
         Image = _load_pillow()
         with Image.open(BytesIO(result.stdout)) as image:
-            mono = image.convert("1")
+            # Dither=NONE: convert("1") otherwise Floyd–Steinberg speckles edges.
+            mono = image.convert("1", dither=Image.Dither.NONE)
             png_path.parent.mkdir(parents=True, exist_ok=True)
             mono.save(png_path, format="PNG")
     finally:

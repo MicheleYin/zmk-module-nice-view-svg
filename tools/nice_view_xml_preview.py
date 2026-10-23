@@ -266,7 +266,8 @@ def preview_png(
         x = _coord(element, "x")
         y = _coord(element, "y")
         image.alpha_composite(sprite, (x, y))
-    mono = image.convert("1")
+    # No dither: anti-aliased SVG fringes must hard-threshold, not speckled.
+    mono = image.convert("1", dither=Image.Dither.NONE)
     draw = ImageDraw.Draw(mono)
     font = ImageFont.load_default()
     for x, y, text in labels:

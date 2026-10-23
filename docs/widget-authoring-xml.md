@@ -43,7 +43,8 @@ LVGL widgets handle status (text, bars, arcs). Decorative art that is not a nati
 
 `generate` rasterizes `.svg` with `rsvg-convert` and embeds **I1** (static) or **I2** (conditional) `lv_image` descriptors. Firmware never enables `LV_USE_SVG` / ThorVG.
 
-Export a full-screen background from an existing status SVG (dynamic nodes stripped):
+Export a full-screen background from an existing status SVG (dynamic nodes and SVG
+text are stripped; author text as XML `<lv_label>` widgets to avoid drawing it twice):
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python -c "

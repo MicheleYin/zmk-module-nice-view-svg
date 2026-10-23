@@ -3,7 +3,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.nice_view_xml import load_catalog, validate_screen, validate_screen_text
+from tools.nice_view_xml import (
+    generate,
+    load_catalog,
+    validate_screen,
+    validate_screen_text,
+)
 from tools.nice_view_xml_assets import (
     export_static_svg_background,
     monochrome_pixels_from_png,
@@ -181,9 +186,8 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 self.assertNotIn("zmk_include", expanded)
                 preview = build_preview_config(path)
                 self.assertTrue(preview["bindings"])
-                header_path, _ = write_generated(
-                    path, Path(temp_dir), expanded
-                )
+                generate(path, Path(temp_dir))
+                header_path = Path(temp_dir) / "status_screen_gen.h"
                 header = header_path.read_text()
                 self.assertIn("ZMK_NVP_SVG_BINDING_COUNT", header)
 

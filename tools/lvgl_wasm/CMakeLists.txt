@@ -32,8 +32,8 @@ configure_file(index.html "${WEB_OUTPUT_DIR}/index.html" COPYONLY)
 if(EMSCRIPTEN)
     target_link_options(lvgl_preview PRIVATE
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sENVIRONMENT=web"
-        "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free','_render_xml','_get_framebuffer','_get_width','_get_height']"
+        "-sENVIRONMENT=web,node"
+        "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free','_render_xml','_set_preview_size','_get_framebuffer','_get_width','_get_height']"
         "-sEXPORTED_RUNTIME_METHODS=['HEAPU8']"
         "-sMODULARIZE=1"
         "-sEXPORT_NAME=CreateLVGLModule"

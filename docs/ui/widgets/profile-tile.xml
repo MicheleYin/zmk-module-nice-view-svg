@@ -1,0 +1,10 @@
+<fragment>
+  <zmk_status_when field="{{active_field}}" test="equals" value="{{profile_index}}">
+    <lv_image src="../assets/profile_active.svg" x="{{tile_x}}" y="{{tile_y}}"
+              width="19" height="15" />
+  </zmk_status_when>
+  <lv_label text="{{profile_number}}" x="{{label_x}}" y="{{label_y}}" />
+  <zmk_status_when field="{{connected_field}}" test="bit_set" bit="{{profile_bit}}">
+    <lv_label text="*" x="{{connected_x}}" y="{{connected_y}}" />
+  </zmk_status_when>
+</fragment>

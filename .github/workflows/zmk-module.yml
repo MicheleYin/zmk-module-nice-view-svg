@@ -30,6 +30,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - uses: ./.github/actions/west-init
+      - name: Install host test dependencies
+        run: python3 -m pip install -r tools/requirements.txt
       - name: Test
         run: python3 -m unittest -v
       - name: Upload Build Artifacts
@@ -38,6 +40,30 @@ jobs:
           name: zmk-firmware
           path: |
             build/*/zephyr/zmk.uf2
+
+  gallery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Install rasterizer and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          python -m pip install -r tools/requirements.txt
+      - name: Build LVGL XML renderer
+        run: |
+          emcmake cmake -S tools/lvgl_wasm -B build/lvgl_wasm
+          cmake --build build/lvgl_wasm
+      - name: Regenerate README gallery
+        run: python tools/render_xml_gallery.py
+      - name: Check gallery is current
+        run: git diff --exit-code -- docs/ui/gallery
 
   keepalive:
     if: github.event_name == 'schedule'

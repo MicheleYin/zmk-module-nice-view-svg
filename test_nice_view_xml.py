@@ -1,7 +1,12 @@
 import shutil
+import threading
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
+from PIL import Image, ImageDraw
+from watchdog.observers import Observer
 
 from tools.nice_view_xml import (
     generate,
@@ -15,8 +20,13 @@ from tools.nice_view_xml_assets import (
 )
 from tools.nice_view_xml_codegen import write_generated
 from tools.nice_view_xml_components import expand_screen_file
-from tools.nice_view_xml_live import build_paired_preview_config, build_preview_config
-from tools.nice_view_xml_preview import preview_xml_text
+from tools.nice_view_xml_live import (
+    LivePreviewHandler,
+    LivePreviewServer,
+    build_paired_preview_config,
+    build_preview_config,
+)
+from tools.nice_view_xml_preview import preview_png, preview_xml_text
 
 
 FIELDS = load_catalog()
@@ -31,6 +41,35 @@ def make_screen(body: str = "", width: int = 160, height: int = 68) -> str:
 
 
 class NiceViewXmlValidationTests(unittest.TestCase):
+    def test_preview_keeps_file_backed_images_below_lvgl_widgets(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            asset_path = Path(temp_dir) / "background.png"
+            output_path = Path(temp_dir) / "preview.png"
+            background = Image.new("RGB", (24, 20), "white")
+            ImageDraw.Draw(background).point((0, 0), fill="black")
+            background.save(asset_path)
+            root = ET.parse(XML_EXAMPLE).getroot()
+            view = root.find("view")
+            self.assertIsNotNone(view)
+            view.insert(0, ET.Element("lv_image", src="background.png", x="0", y="0"))
+            xml = ET.tostring(root, encoding="unicode")
+            screen_path.write_text(xml)
+
+            normalized = preview_xml_text(
+                xml,
+                FIELDS,
+                {"battery.left.percent": 87, "layer.index": 0, "split.connected": True},
+                "central",
+            )
+            preview_png(normalized, output_path, screen_path)
+
+            rendered = Image.open(output_path).convert("1")
+            self.assertEqual(rendered.size, (160, 68))
+            self.assertEqual(rendered.getpixel((0, 0)), 0)
+            label_pixels = rendered.crop((2, 2, 55, 18)).getdata()
+            self.assertIn(0, label_pixels)
+
     @unittest.skipUnless(shutil.which("rsvg-convert"), "rsvg-convert is required")
     def test_background_export_removes_svg_text(self):
         svg = (
@@ -156,6 +195,10 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             screen_dir.mkdir()
             widget_dir.mkdir()
             (widget_dir / "layer.xml").write_text(
+                '<fragment><zmk_include src="layer-value.xml" '
+                'kind="{{kind}}" x="{{x}}"/></fragment>'
+            )
+            (widget_dir / "layer-value.xml").write_text(
                 '<fragment><zmk_status_text field="layer.{{kind}}" '
                 'x="{{x}}" y="4"/></fragment>'
             )
@@ -166,9 +209,18 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 "</view></component>"
             )
 
-            expanded = expand_screen_file(screen_path)
+            dependencies: set[Path] = set()
+            expanded = expand_screen_file(screen_path, dependencies)
             self.assertIn('field="layer.index"', expanded)
             self.assertNotIn("zmk_include", expanded)
+            self.assertEqual(
+                dependencies,
+                {
+                    screen_path.resolve(),
+                    (widget_dir / "layer.xml").resolve(),
+                    (widget_dir / "layer-value.xml").resolve(),
+                },
+            )
             self.assertEqual(validate_screen(screen_path), [])
             header_path, _ = write_generated(
                 screen_path, screen_dir / "generated", expanded
@@ -248,6 +300,118 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         self.assertIn("zmk_nvp_svg_visible_assets", source)
         self.assertIn("lv_image_create", source)
         self.assertIn("LV_COLOR_FORMAT_I2", source)
+
+    def test_generated_firmware_themes_match_xml_sources(self):
+        screens = Path(__file__).parent / "docs" / "ui" / "screens"
+        generated_root = Path(__file__).parent / "src" / "generated_xml"
+        themes = {
+            "default": "status_screen.xml",
+            "day": "day.xml",
+            "night": "night.xml",
+            "oled": "oled-128x32.xml",
+            "oled_mirror": "oled-128x32-mirror.xml",
+        }
+        for theme, screen_name in themes.items():
+            with self.subTest(theme=theme), tempfile.TemporaryDirectory() as temp_dir:
+                generate(screens / screen_name, Path(temp_dir))
+                for extension in (".c", ".h"):
+                    generated = Path(temp_dir) / f"status_screen_gen{extension}"
+                    committed = (
+                        generated_root
+                        / theme
+                        / f"status_screen_gen{extension}"
+                    )
+                    self.assertEqual(generated.read_bytes(), committed.read_bytes())
+
+    def test_live_reload_keeps_last_good_snapshot_on_invalid_xml(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            screen_path.write_text(
+                make_screen('<zmk_status_text field="battery.left.percent" x="1" y="1"/>')
+            )
+            server = LivePreviewServer(
+                ("127.0.0.1", 0), LivePreviewHandler
+            )
+            server.fields = FIELDS
+            server.screen_paths = (screen_path,)
+            server.left_role = "central"
+            server.right_role = "peripheral"
+            server.legacy_inverted = False
+            server.observer = Observer()
+            server.watched_dirs = set()
+            server.state_lock = threading.RLock()
+            server.change_condition = threading.Condition()
+            server.revision = 0
+            server.reload_error = None
+            try:
+                self.assertTrue(server.reload_sources())
+                initial_xml = server.xml_text
+                self.assertIn(
+                    screen_path.resolve().parent,
+                    server.watched_dirs,
+                )
+
+                screen_path.write_text(
+                    make_screen('<zmk_status_text field="battery.left.percent" x="2" y="1"/>')
+                )
+                self.assertTrue(server.reload_sources())
+                last_good_xml = server.xml_text
+                self.assertNotEqual(initial_xml, last_good_xml)
+
+                screen_path.write_text("<component")
+                self.assertFalse(server.reload_sources())
+                self.assertEqual(server.xml_text, last_good_xml)
+                self.assertIsNotNone(server.reload_error)
+            finally:
+                server.observer.unschedule_all()
+                server.server_close()
+
+    def test_live_watcher_refreshes_nested_widget_changes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_dir = Path(temp_dir)
+            widget_dir = screen_dir / "widgets"
+            widget_dir.mkdir()
+            screen_path = screen_dir / "screen.xml"
+            widget_path = widget_dir / "label.xml"
+            widget_path.write_text(
+                '<fragment><lv_label text="{{label}}" x="1" y="1"/></fragment>'
+            )
+            screen_path.write_text(
+                '<component><view width="160" height="68">'
+                '<zmk_include src="widgets/label.xml" label="BEFORE"/>'
+                '</view></component>'
+            )
+            server = LivePreviewServer(("127.0.0.1", 0), LivePreviewHandler)
+            server.fields = FIELDS
+            server.screen_paths = (screen_path,)
+            server.left_role = "central"
+            server.right_role = "peripheral"
+            server.legacy_inverted = False
+            server.observer = Observer()
+            server.watched_dirs = set()
+            server.state_lock = threading.RLock()
+            server.change_condition = threading.Condition()
+            server.revision = 0
+            server.reload_error = None
+            try:
+                self.assertTrue(server.reload_sources())
+                self.assertIn("BEFORE", server.xml_text)
+                server.observer.start()
+                initial_revision = server.revision
+                widget_path.write_text(
+                    '<fragment><lv_label text="{{label}}" x="2" y="1"/></fragment>'
+                )
+                with server.change_condition:
+                    changed = server.change_condition.wait_for(
+                        lambda: server.revision > initial_revision, timeout=3
+                    )
+                self.assertTrue(changed, "nested widget change was not observed")
+                self.assertIn('x="2"', server.xml_text)
+                self.assertIsNone(server.reload_error)
+            finally:
+                server.observer.stop()
+                server.observer.join()
+                server.server_close()
 
 
 if __name__ == "__main__":

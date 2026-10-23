@@ -89,12 +89,20 @@ def preview_xml_text(
                 element.set("hidden", "true")
                 continue
             text = _format_value(values.get(field_id), field, element.get("format", "text"))
-            x, y = element.get("x", "0"), element.get("y", "0")
+            attributes = {
+                name: value
+                for name, value in element.attrib.items()
+                if name not in {"field", "format", "font_size", "role"}
+            }
+            font_size = _coord(element, "font_size", 11)
             element.tag = "lv_label"
             element.attrib.clear()
+            element.attrib.update(attributes)
             element.set("text", text)
-            element.set("x", x)
-            element.set("y", y)
+            font = "lv_montserrat_20" if font_size >= 16 else (
+                "lv_montserrat_12" if font_size > 8 else "lv_montserrat_8"
+            )
+            element.set("style_text_font", font)
         elif element.tag == "zmk_status_bar" and field_id:
             field = fields[field_id]
             percent = values.get(field_id, 0)
@@ -236,9 +244,9 @@ def preview_png(
         int(view.get("height", str(PREVIEW_HEIGHT))) if view is not None else PREVIEW_HEIGHT
     )
 
-    wasm_js = Path(__file__).parent / "lvgl_wasm" / "build" / "web" / "preview.js"
+    wasm_js = Path(__file__).resolve().parents[1] / "build" / "lvgl_wasm" / "web" / "preview.js"
     if wasm_js.exists():
-        _preview_with_wasm(xml_text, output_path, width, height)
+        _preview_with_wasm(xml_text, output_path, width, height, screen_path)
         return
 
     Image, ImageDraw, ImageFont = _load_pillow()
@@ -282,21 +290,65 @@ def preview_png(
     mono.save(output_path, format="PNG")
 
 
-def _preview_with_wasm(xml_text: str, output_path: Path, width: int, height: int) -> None:
+def _preview_with_wasm(
+    xml_text: str,
+    output_path: Path,
+    width: int,
+    height: int,
+    screen_path: Path | None,
+) -> None:
     node = shutil.which("node")
     if node is None:
         raise RuntimeError("node is required for WebAssembly LVGL preview")
     script = Path(__file__).parent / "lvgl_wasm" / "render_cli.js"
     if not script.exists():
         raise RuntimeError(f"missing wasm helper script: {script}")
+    root = ET.fromstring(xml_text)
+    images = [element for element in root.iter("lv_image") if not _is_hidden(element)]
+    parents = {child: parent for parent in root.iter() for child in parent}
+    for element in images:
+        parent = parents.get(element)
+        if parent is not None:
+            parent.remove(element)
     with tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False) as handle:
-        handle.write(xml_text)
+        handle.write(ET.tostring(root, encoding="unicode"))
         xml_path = handle.name
-    result = subprocess.run(
-        [node, str(script), xml_path, str(output_path), str(width), str(height)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr or result.stdout or "wasm preview failed")
+    with tempfile.NamedTemporaryFile(suffix=".rgba", delete=False) as handle:
+        rendered_path = Path(handle.name)
+    try:
+        result = subprocess.run(
+            [node, str(script), xml_path, str(rendered_path), str(width), str(height)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr or result.stdout or "wasm preview failed")
+        rgba = rendered_path.read_bytes()
+        if len(rgba) != width * height * 4:
+            raise RuntimeError("LVGL preview returned an invalid framebuffer size")
+        Image, _, _ = _load_pillow()
+        background = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+        for element in images:
+            source = element.get("src")
+            if not source:
+                continue
+            resolved = _resolve_preview_image(source, screen_path)
+            if resolved is None:
+                continue
+            req_w = _coord(element, "width") or None
+            req_h = _coord(element, "height") or None
+            sprite = preview_rgba_image(resolved, req_w, req_h)
+            background.alpha_composite(
+                sprite, (_coord(element, "x"), _coord(element, "y"))
+            )
+        foreground = Image.frombytes(
+            "RGBA", (width, height), rgba, "raw", "BGRA"
+        ).convert("L")
+        foreground_mask = foreground.point(lambda pixel: 255 if pixel < 128 else 0)
+        background.paste((0, 0, 0, 255), (0, 0, width, height), foreground_mask)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        background.convert("1", dither=Image.Dither.NONE).save(output_path, format="PNG")
+    finally:
+        Path(xml_path).unlink(missing_ok=True)
+        rendered_path.unlink(missing_ok=True)

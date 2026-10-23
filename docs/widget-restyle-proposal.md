@@ -1,4 +1,4 @@
-# ZMK SVG Widget Restyle Proposal
+# ZMK XML Widget Restyle Proposal
 
 ## Scope
 
@@ -16,7 +16,7 @@ Use the 160 x 68 landscape canvas to match the supplied SVG: paired battery mete
 
 The previous implementation used six text labels in a two-column arrangement. The new layout has five groups, with the battery group containing two rows. Saved layout records use layout version 2; a version-1 saved layout is ignored and the version-2 defaults are used. The split status packet is version 2 to include central battery state.
 
-## SVG-Matched Landscape Layout
+## Theme-Matched Landscape Layout
 
 ### Pixel Layout
 
@@ -32,17 +32,17 @@ The Nice!view canvas is 160 x 68 pixels: `x=0..159`, `y=0..67`. Group origins an
 
 Dividers span `(2, 33)` to `(158, 33)` and `(2, 55)` to `(158, 55)`. Battery fills scale to `floor(18 * percentage / 100)` pixels. A white charging-bolt symbol overlays the fill while charging; unknown levels show `--`. Profile selection uses a filled button, while every non-selected profile is outlined. The inversion setting swaps foreground/background colors.
 
-The preview below uses the native 160 x 68 landscape proportions and the widget coordinates above. It shows USB, profile 1 selected, central battery charging at 87%, peripheral battery at 64%, and layer 0. Text and symbols approximate LVGL glyph rendering.
+The generated preview uses the native LVGL renderer at 160 x 68. It shows USB, profile 1 selected, central battery charging at 87%, peripheral battery at 64%, and layer 0.
 
-![Approximate ZMK SVG screen preview at 160 x 68](nice-view-plus-preview.svg)
+![LVGL XML screen preview at 160 x 68](ui/gallery/default-left.png)
 
-The screen has no WPM row. The display output remains in its native 160 x 68 orientation; arrange the artwork and widgets in the SVG for the desired reading direction.
+The screen has no WPM row. The display output remains in its native 160 x 68 orientation; arrange the artwork and widgets in XML for the desired reading direction.
 
 ## Mirroring Rules
 
 - Use the same widget order and visual treatment on both halves.
 - Mirror central and peripheral battery state, host/output, BLE profile state, and active layer to both displays.
-- Retain WPM in the status packet and send its updates only when `CONFIG_ZMK_WPM` is enabled; ZMK SVG does not enable or render WPM itself.
+- Retain WPM in the status packet and send its updates only when `CONFIG_ZMK_WPM` is enabled; this module does not enable or render WPM itself.
 - Show the same static split arrangement icon on both displays without role-specific text.
 - Display the same layer index on both halves. The split status packet is version 2 and includes central battery state.
 

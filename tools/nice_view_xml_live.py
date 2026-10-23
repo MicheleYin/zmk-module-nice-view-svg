@@ -2,12 +2,16 @@
 
 import argparse
 import json
+import threading
 import webbrowser
 import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 if __package__:
     from tools.nice_view_xml import (
@@ -68,12 +72,13 @@ def build_preview_config(
     screen_path: Path,
     initial_role: str = "central",
     legacy_inverted: bool = False,
+    dependencies: set[Path] | None = None,
 ) -> dict[str, Any]:
     if initial_role not in ROLES:
         raise ValueError(f"unknown display role: {initial_role}")
 
     fields = load_catalog(TOOLS_DIR / "status_fields.json")
-    xml_text = expand_screen_file(screen_path)
+    xml_text = expand_screen_file(screen_path, dependencies)
     errors = validate_screen_text(xml_text, fields)
     if errors:
         raise ValueError("\n".join(errors))
@@ -142,9 +147,10 @@ def build_paired_preview_config(
     left_role: str = "central",
     right_role: str = "peripheral",
     legacy_inverted: bool = False,
+    dependencies: set[Path] | None = None,
 ) -> dict[str, Any]:
-    left = build_preview_config(left_screen, left_role, legacy_inverted)
-    right = build_preview_config(right_screen, right_role, legacy_inverted)
+    left = build_preview_config(left_screen, left_role, legacy_inverted, dependencies)
+    right = build_preview_config(right_screen, right_role, legacy_inverted, dependencies)
     bindings: dict[str, dict[str, Any]] = {}
     for config in (left, right):
         for binding in config["bindings"]:
@@ -202,6 +208,105 @@ class LivePreviewServer(ThreadingHTTPServer):
     xml_text: str
     panel_xml_texts: dict[str, str]
     fields: dict[str, Any]
+    screen_paths: tuple[Path, ...]
+    left_role: str
+    right_role: str
+    legacy_inverted: bool
+    observer: Observer
+    watched_dirs: set[Path]
+    state_lock: threading.RLock
+    change_condition: threading.Condition
+    revision: int
+    reload_error: str | None
+
+    def watch_dependencies(self, dependencies: set[Path]) -> None:
+        for dependency in dependencies:
+            directory = dependency.parent
+            while not directory.exists() and directory != directory.parent:
+                directory = directory.parent
+            if directory in self.watched_dirs or not directory.is_dir():
+                continue
+            self.observer.schedule(_DebouncedFileHandler(self), str(directory), recursive=True)
+            self.watched_dirs.add(directory)
+
+    def reload_sources(self) -> bool:
+        dependencies: set[Path] = set()
+        try:
+            if len(self.screen_paths) == 2:
+                left_path, right_path = self.screen_paths
+                config = build_paired_preview_config(
+                    left_path,
+                    right_path,
+                    self.left_role,
+                    self.right_role,
+                    self.legacy_inverted,
+                    dependencies,
+                )
+                panel_xml_texts = {
+                    "left": expand_screen_file(left_path),
+                    "right": expand_screen_file(right_path),
+                }
+                xml_text = ""
+            else:
+                screen_path = self.screen_paths[0]
+                config = build_preview_config(
+                    screen_path,
+                    self.left_role,
+                    self.legacy_inverted,
+                    dependencies,
+                )
+                xml_text = expand_screen_file(screen_path)
+                panel_xml_texts = {}
+        except (OSError, TypeError, ValueError) as error:
+            self.watch_dependencies(dependencies)
+            self.publish_change(str(error))
+            return False
+
+        self.watch_dependencies(dependencies)
+        with self.state_lock:
+            self.preview_config = config
+            self.xml_text = xml_text
+            self.panel_xml_texts = panel_xml_texts
+        self.publish_change(None)
+        return True
+
+    def publish_change(self, error: str | None) -> None:
+        with self.change_condition:
+            self.revision += 1
+            self.reload_error = error
+            self.change_condition.notify_all()
+
+
+class _DebouncedFileHandler(FileSystemEventHandler):
+    def __init__(self, server: LivePreviewServer) -> None:
+        self.server = server
+        self.lock = threading.Lock()
+        self.timer: threading.Timer | None = None
+
+    def on_any_event(self, event: Any) -> None:
+        if event.is_directory:
+            return
+        with self.lock:
+            if self.timer is not None:
+                self.timer.cancel()
+            self.timer = threading.Timer(0.2, self.server.reload_sources)
+            self.timer.daemon = True
+            self.timer.start()
+
+
+def _select_preview_source(
+    server: LivePreviewServer, panel: str | None, role: str
+) -> tuple[str, str | None]:
+    if not server.preview_config.get("paired"):
+        with server.state_lock:
+            return server.xml_text, server.preview_config.get("screenPath")
+    if panel not in {"left", "right"}:
+        raise ValueError("paired preview needs a left or right panel")
+    if role != server.preview_config["panelRoles"][panel]:
+        raise ValueError("role does not match the selected preview panel")
+    with server.state_lock:
+        screen = server.preview_config["screens"][panel]
+        return server.panel_xml_texts[panel], screen["screenPath"]
 
 
 class LivePreviewHandler(BaseHTTPRequestHandler):
@@ -213,15 +318,40 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
         if path in {"/", "/index.html"}:
             self._send(200, "text/html; charset=utf-8", PAGE_PATH.read_bytes())
         elif path == "/config":
-            body = json.dumps(self.server.preview_config).encode("utf-8")
+            with self.server.state_lock:
+                body = json.dumps(self.server.preview_config).encode("utf-8")
             self._send(200, "application/json; charset=utf-8", body)
+        elif path == "/events":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            revision = -1
+            while True:
+                with self.server.change_condition:
+                    self.server.change_condition.wait_for(
+                        lambda: self.server.revision != revision, timeout=15
+                    )
+                    revision = self.server.revision
+                    payload = json.dumps(
+                        {"revision": revision, "error": self.server.reload_error}
+                    )
+                try:
+                    self.wfile.write(f"event: change\ndata: {payload}\n\n".encode())
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    return
         else:
             self._send(404, TEXT_CONTENT_TYPE, b"Not found")
 
@@ -240,18 +370,9 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             inversion_mode = request.get("inversionMode", "legacy")
             if role not in ROLES or not isinstance(values, dict):
                 raise ValueError("request needs a role and values object")
-            if self.server.preview_config.get("paired"):
-                if panel not in {"left", "right"}:
-                    raise ValueError("paired preview needs a left or right panel")
-                if role != self.server.preview_config["panelRoles"][panel]:
-                    raise ValueError("role does not match the selected preview panel")
-                xml_text = self.server.panel_xml_texts[panel]
-                screen_path_value = self.server.preview_config["screens"][panel][
-                    "screenPath"
-                ]
-            else:
-                xml_text = self.server.xml_text
-                screen_path_value = self.server.preview_config.get("screenPath")
+            xml_text, screen_path_value = _select_preview_source(
+                self.server, panel, role
+            )
             if inversion_mode not in {"legacy", "white-background"}:
                 raise ValueError("unknown inversion mode")
             expanded = preview_xml_text(
@@ -314,30 +435,27 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     try:
-        if arguments.right_screen:
-            config = build_paired_preview_config(
-                arguments.screen,
-                arguments.right_screen,
-                arguments.left_role,
-                arguments.right_role,
-                arguments.legacy_inverted,
-            )
-        else:
-            config = build_preview_config(
-                arguments.screen, arguments.role, arguments.legacy_inverted
-            )
         fields = load_catalog(TOOLS_DIR / "status_fields.json")
         server = LivePreviewServer(("127.0.0.1", arguments.port), LivePreviewHandler)
-        server.preview_config = config
-        if config.get("paired"):
-            server.panel_xml_texts = {
-                "left": expand_screen_file(arguments.screen),
-                "right": expand_screen_file(arguments.right_screen),
-            }
-            server.xml_text = ""
-        else:
-            server.xml_text = expand_screen_file(arguments.screen)
         server.fields = fields
+        server.screen_paths = (
+            (arguments.screen.resolve(), arguments.right_screen.resolve())
+            if arguments.right_screen
+            else (arguments.screen.resolve(),)
+        )
+        server.left_role = arguments.left_role if arguments.right_screen else arguments.role
+        server.right_role = arguments.right_role
+        server.legacy_inverted = arguments.legacy_inverted
+        server.observer = Observer()
+        server.watched_dirs = set()
+        server.state_lock = threading.RLock()
+        server.change_condition = threading.Condition()
+        server.revision = 0
+        server.reload_error = None
+        if not server.reload_sources():
+            server.server_close()
+            return 1
+        server.observer.start()
     except (OSError, TypeError, ValueError) as error:
         print(error)
         return 1
@@ -351,6 +469,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\nStopping live preview.")
     finally:
+        server.observer.stop()
+        server.observer.join()
         server.server_close()
     return 0
 

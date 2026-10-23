@@ -1,43 +1,28 @@
-# Merge plan: `feature/lvgl` → `main` (and Sofle)
+# XML-First Release Checklist
 
-Target branch for the module: `feature/lvgl` (local WIP with XML + offline SVG embeds).
-Integration with Sofle remains on `feature/nice-view` pins until you intentionally bump
-`zmk-sofle/config/west.yml`.
+The module branch is `feature/lvgl`. This work prepares a reviewable merge into
+`main`; it does not update the Sofle manifest or publish the branch.
 
 ## Before merge
 
-1. **Commit remaining WIP** on `feature/lvgl` (embeds, docs, regenerated `generated_xml`).
-2. **Rebase or merge `main`** into `feature/lvgl` and resolve conflicts in:
-   - `README.md`, `AGENTS.md`, `CMakeLists.txt`, `Kconfig`
-   - Any overlapping `src/generated_*.h` if `main` regenerated SVG headers
-3. **Regenerate** all five XML themes after conflict resolution.
-4. **Run** `pre-commit run` and `python3 -m unittest`.
-5. **Optional device smoke**: Sofle build with `CONFIG_ZMK_SVG_LVGL_XML=y` on one half.
+1. Regenerate the five firmware XML themes and paired PNG gallery.
+2. Run `pre-commit run` and `uv run --isolated --with-requirements tools/requirements.txt python -m unittest`.
+3. Confirm CI compiles the XML-enabled Nice!View and OLED configurations.
+4. Review the final diff and then merge only when explicitly approved.
 
 ## PR shape (recommended)
 
-Prefer **one PR into `main`** that:
-
-- Keeps SVG as default (`CONFIG_ZMK_SVG_LVGL_XML` default `n`)
-- Adds XML as opt-in
-- Documents both paths ([xml-vs-svg.md](xml-vs-svg.md), README, AGENTS.md)
-
-Avoid deleting the SVG pipeline in the same PR.
+The release makes XML the default and only screen source. Offline SVG artwork
+conversion remains available; SVG screen parsing, generation, and runtime files
+are removed.
 
 ## Sofle follow-up (separate)
 
-1. Merge/publish module `feature/lvgl` (or tag).
-2. Point `zmk-sofle` west.yml module revision at that commit/branch.
-3. Enable XML only in the shield configs you want to dogfood.
-4. Keep ZMK fork pin on `feature/nice-view` unless LVGL XML needs new ZMK APIs
+1. After merge, point `zmk-sofle` west.yml module revision at the release.
+2. Keep ZMK fork pin on `feature/nice-view` unless the XML screen needs new ZMK APIs
    (it should not: device path is compiled C only).
 
-## Post-merge backlog (parity with SVG)
+## Theme Outputs
 
-Tracked in [xml-vs-svg.md](xml-vs-svg.md). Highest value next:
-
-1. prefix/suffix + color on XML text bindings
-2. Fix `not_equals` codegen
-3. OLED AUTO without extra `LVGL_XML_OLED` flag (align CMake with DT like SVG)
-4. Optional `widget_types.json` validation for XML
-5. Share `read_field` / update helpers between `svg_screen.c` and `xml_screen.c`
+See [widget-authoring-xml.md](widget-authoring-xml.md) for source screens,
+generation commands, and automatic display-size selection.

@@ -56,7 +56,7 @@ BUILD_ASSERT(ZMK_NVP_SVG_WIDTH == DT_PROP(DT_CHOSEN(zephyr_display), width),
 BUILD_ASSERT(ZMK_NVP_SVG_HEIGHT == DT_PROP(DT_CHOSEN(zephyr_display), height),
              "Generated XML height must match the selected display");
 
-#include "svg_screen.h"
+#include "xml_screen.h"
 
 LOG_MODULE_REGISTER(zmk_xml_screen, CONFIG_ZMK_LOG_LEVEL);
 
@@ -362,7 +362,7 @@ static lv_obj_t *create_binding_object(const struct zmk_nvp_svg_binding *binding
     return label;
 }
 
-lv_obj_t *zmk_nvp_svg_screen_create(void) {
+lv_obj_t *zmk_nvp_xml_screen_create(void) {
     const struct device *display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
     struct display_capabilities capabilities;
     if (!device_is_ready(display_device)) {
@@ -423,7 +423,7 @@ static void format_binding_text(char *buffer, size_t size,
     snprintf(buffer, size, "%s%s%s", binding->prefix, value_buffer, binding->suffix);
 }
 
-void zmk_nvp_svg_screen_update(const struct zmk_nvp_screen_state *state) {
+void zmk_nvp_xml_screen_update(const struct zmk_nvp_screen_state *state) {
     if (!screen || !state) {
         return;
     }

@@ -35,7 +35,7 @@
 #include <zmk/stdlib.h>
 #include <zmk/split/bluetooth/status.h>
 #include <zmk_nice_view_plus/layout.h>
-#include "svg_screen.h"
+#include "xml_screen.h"
 
 #if IS_ENABLED(CONFIG_ZMK_SPLIT) && IS_ENABLED(CONFIG_ZMK_SPLIT_BLE)
 #include <zmk/events/split_peripheral_status_changed.h>
@@ -193,7 +193,7 @@ static void render_status(struct k_work *work) {
     ARG_UNUSED(work);
 
 #if IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
-    zmk_nvp_svg_screen_update(&state);
+    zmk_nvp_xml_screen_update(&state);
 #else
 
     char text[24];
@@ -399,7 +399,7 @@ lv_obj_t *zmk_display_status_screen(void) {
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_SVG_SCREEN)
-    screen = zmk_nvp_svg_screen_create();
+    screen = zmk_nvp_xml_screen_create();
 #else
     const struct device *display_device = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
     struct display_capabilities capabilities;

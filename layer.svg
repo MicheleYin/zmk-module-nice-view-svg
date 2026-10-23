@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="30" height="30" viewBox="0 0 30 30"
+     shape-rendering="crispEdges">
+
+  <rect x="1" y="1"
+        width="28" height="28"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"/>
+
+  <!-- Layer indicator -->
+  <path d="M7 8 L15 4 L23 8 L15 12 Z"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.2"/>
+
+  <path d="M7 12 L15 16 L23 12
+           M7 16 L15 20 L23 16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.2"/>
+
+  <text x="15" y="27"
+        text-anchor="middle"
+        font-family="monospace"
+        font-size="8"
+        fill="currentColor">2</text>
+
+</svg>

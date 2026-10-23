@@ -1,40 +1,30 @@
-# ZMK Module Development Instructions
+# ZMK XML Screen Module Instructions
 
-This repository is the **ZMK SVG / LVGL XML status-screen module** (Zephyr module
-name `zmk-svg`). Keyboard users enable it from a ZMK config; agents should treat
-sibling Sofle/ZMK forks as the integration workspace, not upstream ZMK alone.
+This repository is the **ZMK LVGL XML status-screen module** (Zephyr module
+name and compatibility Kconfig prefix remain `zmk-svg` / `CONFIG_ZMK_SVG`).
+Keyboard users enable it from a ZMK config; use sibling Sofle/ZMK forks as the
+integration workspace, not upstream ZMK alone.
 
-## Dual pipelines (read this first)
+## XML Screen Pipeline
 
-Two authoring paths share one firmware binding model. Do **not** assume SVG-only
-or XML-only without checking Kconfig.
-
-| Path | When | Sources | Generate into | Runtime |
-| --- | --- | --- | --- | --- |
-| SVG | default (`CONFIG_ZMK_SVG_LVGL_XML` off) | `docs/screens/`, `docs/examples/` | `src/generated_*.h` | `src/svg_screen.c` |
-| XML | `CONFIG_ZMK_SVG_LVGL_XML=y` | `docs/ui/screens/`, `docs/ui/assets/` | `src/generated_xml/<theme>/` | `src/xml_screen.c` |
-
-Parity and gaps: [docs/xml-vs-svg.md](docs/xml-vs-svg.md).  
-Authoring: [docs/widget-authoring.md](docs/widget-authoring.md) (SVG),
-[docs/widget-authoring-xml.md](docs/widget-authoring-xml.md) (XML).
+`docs/ui/screens/`, `docs/ui/widgets/`, and `docs/ui/assets/` are the only screen
+sources. Generate firmware into `src/generated_xml/<theme>/`; runtime is
+`src/xml_screen.c`. SVG and PNG files are allowed only as offline artwork inputs.
 
 ### Agent rules
 
 - After editing XML screens or assets, regenerate the matching
   `src/generated_xml/<theme>/status_screen_gen.{c,h}` and commit them.
-- After editing SVG screens used by firmware themes, regenerate the matching
-  `src/generated_*_screen.h` (or `generated_screen.h`) and commit them.
-- Prefer fixing both `svg_screen.c` and `xml_screen.c` when changing shared
-  update/read_field behavior (they are near-forks).
-- Do not enable firmware `LV_USE_SVG` / ThorVG for decoration; use offline
-  I1/I2 embeds.
+- Regenerate the paired image gallery with `tools/render_xml_gallery.py` after
+  changing screens, widgets, or artwork.
+- Do not enable firmware `LV_USE_SVG` / ThorVG; use offline I1/I2 embeds.
 - Do not edit Cursor plan files under `~/.cursor/plans/` unless the user asks.
 
 ## Dev Rules
 
 - Commit changes at each milestone. Ensure pre-commit works and never bypass pre-commit.
 - Write simple and sufficient tests for new features.
-  - Host/unit: extend `test_nice_view_svg.py` and/or `test_nice_view_xml.py`.
+  - Host/unit: extend `test_nice_view_xml.py`.
   - Firmware unit: `tests/<case>` via `west zmk-test` when behavior is on-device.
   - Build: enable features in `tests/zmk-config/*` and assert in `test.py`.
 - Update `README.md` for keyboard users; keep guides short.
@@ -63,15 +53,15 @@ custom-fork validation.
 
 ## Commands
 
-Host tooling needs `uv` and (for SVG/XML raster) `rsvg-convert` on `PATH`.
+Host tooling needs `uv`, Node.js, Emscripten, and `rsvg-convert` on `PATH` for
+the LVGL-native PNG gallery; XML preview/unit tests use Pillow and watchdog.
 
 ```sh
 # Lint / hooks
 pre-commit run
 
-# Host unit tests (SVG + XML)
-python3 -m unittest
-python3 -m unittest test_nice_view_xml test_nice_view_svg
+# Host unit tests
+uv run --isolated --with-requirements tools/requirements.txt python -m unittest
 
 # XML validate / generate / live (example: default theme)
 uv run --isolated --with-requirements tools/requirements.txt \
@@ -82,9 +72,9 @@ uv run --isolated --with-requirements tools/requirements.txt \
 uv run --isolated --with-requirements tools/requirements.txt \
   python tools/nice_view_xml_live.py docs/ui/screens/status_screen.xml
 
-# SVG (legacy path)
+# Paired LVGL-native PNG gallery
 uv run --isolated --with-requirements tools/requirements.txt \
-  python tools/nice_view_svg.py validate docs/screens/default.svg
+  python tools/render_xml_gallery.py
 
 # Module west tests / build
 west zmk-test tests -m .
@@ -106,11 +96,10 @@ west zmk-build tests/zmk-config
 ```conf
 CONFIG_ZMK_SVG=y
 CONFIG_ZMK_SVG_SCREEN=y
-CONFIG_ZMK_SVG_LVGL_XML=y
 ```
 
-For 128x32 OLED automatic theme selection, also set `CONFIG_ZMK_SVG_LVGL_XML_OLED=y`
-(and `CONFIG_ZMK_SVG_RIGHT_HALF=y` on the mirrored half).
+Theme selection is automatic from display dimensions. Set
+`CONFIG_ZMK_SVG_RIGHT_HALF=y` on the mirrored 128x32 display.
 
 ## Codacy / local analysis
 

@@ -29,5 +29,5 @@ struct zmk_nvp_screen_state {
     bool split_connected;
 };
 
-lv_obj_t *zmk_nvp_svg_screen_create(void);
-void zmk_nvp_svg_screen_update(const struct zmk_nvp_screen_state *state);
+lv_obj_t *zmk_nvp_xml_screen_create(void);
+void zmk_nvp_xml_screen_update(const struct zmk_nvp_screen_state *state);

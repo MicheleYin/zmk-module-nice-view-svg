@@ -1,0 +1,8 @@
+<fragment>
+  <zmk_status_when field="split.connected" test="equals" value="true">
+    <lv_label text="+" x="{{x}}" y="{{y}}" />
+  </zmk_status_when>
+  <zmk_status_when field="split.connected" test="equals" value="false">
+    <lv_label text="-" x="{{x}}" y="{{y}}" />
+  </zmk_status_when>
+</fragment>

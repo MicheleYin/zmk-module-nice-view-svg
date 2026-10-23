@@ -307,10 +307,10 @@ const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {
 const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 22, 7, 15, 4, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },
     { "battery.left.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 0, 27, 4, 8, 10, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "charging", 0 },
-    { "battery.left.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 13, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
+    { "battery.left.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 3, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "battery.right.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 22, 22, 15, 4, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },
     { "battery.right.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 1, 27, 19, 8, 10, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "charging", 0 },
-    { "battery.right.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 28, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
+    { "battery.right.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 18, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "layer.index", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 140, 20, 0, 0, 0, 0, 0, 16, 0, "monospace", "start", "value", "", "", "", 0 },
     { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 2, 35, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "0", 0 },
     { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 48, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 0 },

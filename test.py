@@ -61,6 +61,9 @@ class WestCommandsTests(unittest.TestCase):
                         'CONFIG_ZMK_KEYBOARD_NAME="Module Test"',
                         "CONFIG_ZMK_USB=y",
                         "CONFIG_ZMK_BLE=y",
+                        "CONFIG_ZMK_DISPLAY=y",
+                        "CONFIG_ZMK_SVG=y",
+                        "CONFIG_ZMK_SVG_SCREEN=y",
                         # Verify that this config entry is not present
                         NotFound("CONFIG_SHOULD_NOT_EXIST"),
                     ],

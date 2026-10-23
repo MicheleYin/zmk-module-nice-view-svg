@@ -2,3 +2,28 @@
 &board_cdc_acm_uart {
 	status = "disabled";
 };
+
+/ {
+	chosen {
+		zephyr,display = &xml_test_display;
+	};
+};
+
+&arduino_i2c {
+	status = "okay";
+
+	xml_test_display: ssd1306@3c {
+		compatible = "solomon,ssd1306fb";
+		reg = <0x3c>;
+		width = <160>;
+		height = <68>;
+		segment-offset = <0>;
+		page-offset = <0>;
+		display-offset = <0>;
+		multiplex-ratio = <67>;
+		segment-remap;
+		com-invdir;
+		com-sequential;
+		prechargep = <0x22>;
+	};
+};

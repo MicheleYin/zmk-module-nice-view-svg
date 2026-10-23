@@ -1,5 +1,5 @@
 menuconfig ZMK_SVG
-  bool "Enable ZMK SVG status screen"
+  bool "Enable Nice!View status screen"
     depends on ZMK_DISPLAY && SETTINGS
     select LV_USE_IMAGE
     select LV_USE_LABEL
@@ -12,10 +12,10 @@ menuconfig ZMK_SVG
     select ZMK_SPLIT_BLE_STATUS_SYNC if ZMK_SPLIT && ZMK_SPLIT_BLE
     select ZMK_SPLIT_BLE_CENTRAL_BATTERY_LEVEL_FETCHING if ZMK_SPLIT_ROLE_CENTRAL && ZMK_SPLIT_BLE
     help
-      Use the ZMK SVG status screen and optional split status sync.
+      Use the Nice!View status screen and optional split status sync.
 
 config ZMK_SVG_WHITE_BACKGROUND
-    bool "Keep the ZMK SVG screen background white"
+  bool "Keep the Nice!View screen background white"
     depends on ZMK_SVG
     default n
     help
@@ -23,15 +23,15 @@ config ZMK_SVG_WHITE_BACKGROUND
       Nice!View widget inversion option is enabled.
 
 config ZMK_SVG_SCREEN
-    bool "Use generated SVG status screen"
+    bool "Use generated LVGL XML status screen"
     depends on ZMK_SVG
-    default n
+    default y
     help
-      Render the generated monochrome SVG artwork and native status bindings.
-      The screen header must be regenerated when the source SVG changes.
+      Render the generated monochrome LVGL XML screen and native status bindings.
+      The screen sources must be regenerated when the XML source changes.
 
     choice ZMK_SVG_THEME
-      prompt "ZMK SVG screen theme"
+      prompt "Nice!View screen theme"
       depends on ZMK_SVG_SCREEN
       default ZMK_SVG_THEME_AUTO
 
@@ -53,23 +53,6 @@ config ZMK_SVG_SCREEN
       help
         Set this when the central firmware belongs to the physical right side.
         This is separate from whether the current firmware runs on the central.
-
-config ZMK_SVG_LVGL_XML
-    bool "Use LVGL XML generated status screen (no SVG bitmap)"
-    depends on ZMK_SVG_SCREEN
-    default n
-    help
-      Use status screens generated from LVGL component XML under docs/ui/.
-      Regenerate src/generated_xml/*/status_screen_gen.c and .h with
-      tools/nice_view_xml.py generate when XML sources change.
-
-config ZMK_SVG_LVGL_XML_OLED
-    bool "Use 128x32 LVGL XML generated sources"
-    depends on ZMK_SVG_LVGL_XML
-    default n
-    help
-      Link the 128x32 generated screen for SSD1306 OLED shields. Enable this
-      on 128x32 builds when ZMK_SVG_THEME_AUTO is selected.
 
 config ZMK_SVG_RIGHT_HALF
     bool "This display is on the right half"

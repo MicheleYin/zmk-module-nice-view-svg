@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nice!view SVG Live Preview</title>
+  <title>Nice!view LVGL XML Live Preview</title>
   <style>
     :root {
       color-scheme: light;
@@ -29,6 +29,7 @@
     .source { color: #c4d0ca; font-size: 12px; overflow-wrap: anywhere; }
     .header-controls { display: flex; align-items: center; gap: 16px; }
     .role-control { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .role-control[hidden] { display: none; }
     select, input { font: inherit; }
     select {
       min-height: 32px;
@@ -142,7 +143,7 @@
 <body>
   <header>
     <div>
-      <div class="brand">NICE!VIEW / LIVE SVG</div>
+      <div class="brand">NICE!VIEW / LIVE PREVIEW</div>
       <div class="source" id="source"></div>
     </div>
     <div class="header-controls">
@@ -393,6 +394,44 @@
       updateScreenLayout();
     }
 
+    function updateScreenMetadata() {
+      const panels = [...screensRoot.querySelectorAll(".screen-panel")];
+      for (const panel of panels) {
+        const panelConfig = config.paired
+          ? config.screens[panel.dataset.role]
+          : config;
+        panel.querySelector(".screen").style.aspectRatio =
+          `${panelConfig.width} / ${panelConfig.height}`;
+      }
+      document.querySelector("#dimensions").textContent = config.paired
+        ? `Left ${config.screens.left.width} × ${config.screens.left.height} px · Right ${config.screens.right.width} × ${config.screens.right.height} px · 1-bit monochrome`
+        : `${config.width} × ${config.height} px · 1-bit monochrome`;
+    }
+
+    async function refreshConfig() {
+      const response = await fetch("/config", { cache: "no-store" });
+      if (!response.ok) throw new Error(await response.text());
+      const updated = await response.json();
+      const previousValues = config.values;
+      for (const role of ["central", "peripheral"]) {
+        for (const [fieldId, value] of Object.entries(previousValues[role] ?? {})) {
+          if (fieldId in updated.values[role]) updated.values[role][fieldId] = value;
+        }
+      }
+      const bindingsChanged = JSON.stringify(config.bindings) !== JSON.stringify(updated.bindings);
+      config = updated;
+      document.title = `${config.title} · Nice!view Live Preview`;
+      document.querySelector("#source").textContent = config.title;
+      if (bindingsChanged) {
+        controlState.clear();
+        fieldsRoot.replaceChildren();
+        for (const field of config.bindings) createField(field);
+      }
+      updateScreenMetadata();
+      syncControls();
+      queueRender();
+    }
+
     function updateScreenLayout() {
       const both = config.paired || roleSelect.value === "both";
       screensRoot.classList.toggle("both", both);
@@ -477,16 +516,7 @@
         roleSelect.value = "both";
         roleSelect.disabled = true;
       }
-      for (const panel of panels) {
-        const screen = panel.querySelector(".screen");
-        const panelConfig = config.paired
-          ? config.screens[panel.dataset.role]
-          : config;
-        screen.style.aspectRatio = `${panelConfig.width} / ${panelConfig.height}`;
-      }
-      document.querySelector("#dimensions").textContent = config.paired
-        ? `Left ${config.screens.left.width} × ${config.screens.left.height} px · Right ${config.screens.right.width} × ${config.screens.right.height} px · 1-bit monochrome`
-        : `${config.width} × ${config.height} px · 1-bit monochrome`;
+      updateScreenMetadata();
       inversionSelect.value = config.initialInversionMode;
       inversionSelect.addEventListener("change", updateScreenPolarity);
       updateScreenPolarity();
@@ -495,6 +525,20 @@
       roleSelect.addEventListener("change", () => { syncControls(); queueRender(); });
       syncControls();
       renderPreview();
+      const events = new EventSource("/events");
+      events.addEventListener("change", async event => {
+        const change = JSON.parse(event.data);
+        if (change.error) {
+          status.textContent = `Source error: ${change.error}`;
+          return;
+        }
+        try {
+          await refreshConfig();
+        } catch (error) {
+          status.textContent = error.message;
+        }
+      });
+      events.onerror = () => { status.textContent = "Reconnecting to live preview…"; };
     }
 
     try {

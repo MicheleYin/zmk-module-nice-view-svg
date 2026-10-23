@@ -5,15 +5,16 @@ from __future__ import annotations
 import json
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 if __package__:
-    from tools.nice_view_xml_assets import load_i1_png
+    from tools.nice_view_xml_assets import load_i1_image, load_i2_image
 else:
-    from nice_view_xml_assets import load_i1_png
+    from nice_view_xml_assets import load_i1_image, load_i2_image
 
 MAX_DYNAMIC_BINDINGS = 22
+MAX_VISIBLE_ASSETS = 16
 ROLES = {"central": 1, "peripheral": 2}
 RENDERERS = {
     "text": "ZMK_NVP_SVG_RENDER_TEXT",
@@ -33,10 +34,18 @@ class StaticLabel:
 
 
 @dataclass
-class BackgroundImage:
+class StaticImage:
     path: Path
     x: int
     y: int
+    width: int
+    height: int
+    bitmap: bytes
+    format_i2: bool = False
+
+
+@dataclass
+class VisibleAsset:
     width: int
     height: int
     bitmap: bytes
@@ -61,6 +70,17 @@ class BindingSpec:
     match_bit: int
     visible_child_text: str
     anchor: str = "start"
+    asset_index: int = 255
+
+
+@dataclass
+class ScreenModel:
+    width: int
+    height: int
+    static_labels: list[StaticLabel] = field(default_factory=list)
+    static_images: list[StaticImage] = field(default_factory=list)
+    bindings: list[BindingSpec] = field(default_factory=list)
+    visible_assets: list[VisibleAsset] = field(default_factory=list)
 
 
 def _int_attr(element: ET.Element, name: str, default: int = 0) -> int:
@@ -68,6 +88,14 @@ def _int_attr(element: ET.Element, name: str, default: int = 0) -> int:
     if value is None or not re.fullmatch(r"-?\d+", value):
         return default
     return int(value)
+
+
+def _optional_positive_int(element: ET.Element, name: str) -> int | None:
+    value = element.get(name)
+    if value is None or not re.fullmatch(r"\d+", value):
+        return None
+    number = int(value)
+    return number if number > 0 else None
 
 
 def _binding_roles(element: ET.Element) -> int:
@@ -106,9 +134,22 @@ def _resolve_image_path(src: str, screen_path: Path | None) -> Path:
     raise ValueError(f"lv_image src not found: {src}")
 
 
+def _parent_map(root: ET.Element) -> dict[ET.Element, ET.Element]:
+    return {child: parent for parent in root.iter() for child in parent}
+
+
+def _is_under_when(element: ET.Element, parents: dict[ET.Element, ET.Element]) -> bool:
+    current = parents.get(element)
+    while current is not None:
+        if current.tag == "zmk_status_when":
+            return True
+        current = parents.get(current)
+    return False
+
+
 def collect_bindings(
     root: ET.Element, screen_path: Path | None = None
-) -> tuple[int, int, list[StaticLabel], list[BindingSpec], BackgroundImage | None]:
+) -> ScreenModel:
     views = root.findall("view")
     if len(views) != 1:
         raise ValueError("component must contain exactly one direct <view>")
@@ -118,39 +159,36 @@ def collect_bindings(
     if width <= 0 or height <= 0:
         raise ValueError("<view> needs positive width and height")
 
-    static_labels: list[StaticLabel] = []
-    bindings: list[BindingSpec] = []
-    background: BackgroundImage | None = None
+    model = ScreenModel(width=width, height=height)
+    parents = _parent_map(root)
 
     for element in root.iter():
         if element.tag == "lv_image":
+            if _is_under_when(element, parents):
+                continue
             src = element.get("src")
             if not src:
                 raise ValueError("<lv_image> needs a src attribute")
             image_path = _resolve_image_path(src, screen_path)
-            img_w, img_h, bitmap = load_i1_png(image_path)
-            if background is not None:
-                raise ValueError("only one <lv_image> background is supported")
-            background = BackgroundImage(
-                path=image_path,
-                x=_int_attr(element, "x"),
-                y=_int_attr(element, "y"),
-                width=img_w,
-                height=img_h,
-                bitmap=bitmap,
+            req_w = _optional_positive_int(element, "width")
+            req_h = _optional_positive_int(element, "height")
+            img_w, img_h, bitmap = load_i1_image(image_path, req_w, req_h)
+            model.static_images.append(
+                StaticImage(
+                    path=image_path,
+                    x=_int_attr(element, "x"),
+                    y=_int_attr(element, "y"),
+                    width=img_w,
+                    height=img_h,
+                    bitmap=bitmap,
+                )
             )
         elif element.tag == "lv_label" and element.get("field") is None:
-            # Skip labels nested under zmk_status_when; those become visible bindings.
-            parent_is_when = False
-            for parent in root.iter():
-                if element in list(parent) and parent.tag == "zmk_status_when":
-                    parent_is_when = True
-                    break
-            if parent_is_when:
+            if _is_under_when(element, parents):
                 continue
             text = element.get("text")
             if text:
-                static_labels.append(
+                model.static_labels.append(
                     StaticLabel(
                         text=text,
                         x=_int_attr(element, "x"),
@@ -167,7 +205,7 @@ def collect_bindings(
                 "profile-number": "profile-number",
                 "text": "value",
             }.get(fmt, "value")
-            bindings.append(
+            model.bindings.append(
                 BindingSpec(
                     field_id=element.get("field", ""),
                     renderer=renderer,
@@ -179,7 +217,9 @@ def collect_bindings(
                     ring_radius=0,
                     ring_width=0,
                     ring_rounded=0,
-                    font_size=_int_attr(element, "font_size", 11 if renderer == "percent" else 10),
+                    font_size=_int_attr(
+                        element, "font_size", 11 if renderer == "percent" else 10
+                    ),
                     format_name=format_name,
                     prefix="",
                     when="",
@@ -189,7 +229,7 @@ def collect_bindings(
                 )
             )
         elif element.tag == "zmk_status_bar":
-            bindings.append(
+            model.bindings.append(
                 BindingSpec(
                     field_id=element.get("field", ""),
                     renderer="bar",
@@ -211,7 +251,7 @@ def collect_bindings(
             )
         elif element.tag == "zmk_status_arc":
             radius = _int_attr(element, "radius", 10)
-            bindings.append(
+            model.bindings.append(
                 BindingSpec(
                     field_id=element.get("field", ""),
                     renderer="ring",
@@ -232,46 +272,79 @@ def collect_bindings(
                 )
             )
         elif element.tag == "zmk_status_when":
-            child = next((node for node in element if node.tag == "lv_label"), None)
-            child_text = child.get("text", "") if child is not None else ""
-            bindings.append(
+            image_child = next(
+                (node for node in element if node.tag == "lv_image"), None
+            )
+            label_child = next(
+                (node for node in element if node.tag == "lv_label"), None
+            )
+            asset_index = 255
+            child_text = ""
+            if image_child is not None:
+                src = image_child.get("src")
+                if not src:
+                    raise ValueError(
+                        "<zmk_status_when> <lv_image> needs a src attribute"
+                    )
+                image_path = _resolve_image_path(src, screen_path)
+                req_w = _optional_positive_int(image_child, "width")
+                req_h = _optional_positive_int(image_child, "height")
+                img_w, img_h, bitmap = load_i2_image(image_path, req_w, req_h)
+                if len(model.visible_assets) >= MAX_VISIBLE_ASSETS:
+                    raise ValueError(
+                        f"screen has too many visible image assets; "
+                        f"budget is {MAX_VISIBLE_ASSETS}"
+                    )
+                asset_index = len(model.visible_assets)
+                model.visible_assets.append(
+                    VisibleAsset(width=img_w, height=img_h, bitmap=bitmap)
+                )
+                child = image_child
+            elif label_child is not None:
+                child_text = label_child.get("text", "")
+                child = label_child
+            else:
+                child = element
+            model.bindings.append(
                 BindingSpec(
                     field_id=element.get("field", ""),
                     renderer="visible",
                     roles=_binding_roles(element),
-                    x=_int_attr(child or element, "x"),
-                    y=_int_attr(child or element, "y"),
-                    width=_int_attr(child or element, "width", 24),
-                    height=_int_attr(child or element, "height", 12),
+                    x=_int_attr(child, "x"),
+                    y=_int_attr(child, "y"),
+                    width=_int_attr(child, "width", 24),
+                    height=_int_attr(child, "height", 12),
                     ring_radius=0,
                     ring_width=0,
                     ring_rounded=0,
-                    font_size=_int_attr(child or element, "font_size", 10),
+                    font_size=_int_attr(child, "font_size", 10),
                     format_name="value",
                     prefix=child_text,
                     when=_when_string(element),
                     match_bit=_int_attr(element, "bit"),
                     visible_child_text=child_text,
+                    asset_index=asset_index,
                 )
             )
 
-    if len(bindings) > MAX_DYNAMIC_BINDINGS:
+    if len(model.bindings) > MAX_DYNAMIC_BINDINGS:
         raise ValueError(
-            f"screen has {len(bindings)} dynamic bindings; budget is {MAX_DYNAMIC_BINDINGS}"
+            f"screen has {len(model.bindings)} dynamic bindings; "
+            f"budget is {MAX_DYNAMIC_BINDINGS}"
         )
-    return width, height, static_labels, bindings, background
+    return model
 
 
 def _c_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=True)
 
 
-def _emit_background_c(lines: list[str], background: BackgroundImage) -> None:
-    stride = (background.width + 7) // 8
+def _emit_i1_image_c(lines: list[str], symbol: str, image: StaticImage) -> None:
+    stride = (image.width + 7) // 8
     lines.extend(
         [
             "static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t",
-            "    zmk_nvp_svg_background_data[] = {",
+            f"    {symbol}_data[] = {{",
             "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
             "    0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,",
             "#else",
@@ -279,27 +352,73 @@ def _emit_background_c(lines: list[str], background: BackgroundImage) -> None:
             "#endif",
         ]
     )
-    for offset in range(0, len(background.bitmap), 16):
-        chunk = background.bitmap[offset : offset + 16]
+    for offset in range(0, len(image.bitmap), 16):
+        chunk = image.bitmap[offset : offset + 16]
         lines.append("    " + ", ".join(f"0x{byte:02x}" for byte in chunk) + ",")
     lines.extend(
         [
             "};",
             "",
-            "static const lv_image_dsc_t zmk_nvp_svg_background = {",
+            f"static const lv_image_dsc_t {symbol} = {{",
             "    .header = {",
             "        .magic = LV_IMAGE_HEADER_MAGIC,",
             "        .cf = LV_COLOR_FORMAT_I1,",
-            f"        .w = {background.width},",
-            f"        .h = {background.height},",
+            f"        .w = {image.width},",
+            f"        .h = {image.height},",
             f"        .stride = {stride},",
             "    },",
-            "    .data_size = sizeof(zmk_nvp_svg_background_data),",
-            "    .data = zmk_nvp_svg_background_data,",
+            f"    .data_size = sizeof({symbol}_data),",
+            f"    .data = {symbol}_data,",
             "};",
             "",
         ]
     )
+
+
+def _emit_i2_visible_c(lines: list[str], assets: list[VisibleAsset]) -> None:
+    for index, asset in enumerate(assets):
+        stride = (asset.width + 3) // 4
+        lines.extend(
+            [
+                "static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t",
+                f"    zmk_nvp_svg_visible_{index}_data[] = {{",
+                "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
+                "    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,",
+                "    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,",
+                "#else",
+                "    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,",
+                "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,",
+                "#endif",
+            ]
+        )
+        for offset in range(0, len(asset.bitmap), 16):
+            chunk = asset.bitmap[offset : offset + 16]
+            lines.append("    " + ", ".join(f"0x{byte:02x}" for byte in chunk) + ",")
+        lines.extend(
+            [
+                "};",
+                f"static const lv_image_dsc_t zmk_nvp_svg_visible_{index} = {{",
+                "    .header = {",
+                "        .magic = LV_IMAGE_HEADER_MAGIC,",
+                "        .cf = LV_COLOR_FORMAT_I2,",
+                f"        .w = {asset.width},",
+                f"        .h = {asset.height},",
+                f"        .stride = {stride},",
+                "    },",
+                f"    .data_size = sizeof(zmk_nvp_svg_visible_{index}_data),",
+                f"    .data = zmk_nvp_svg_visible_{index}_data,",
+                "};",
+                "",
+            ]
+        )
+    lines.append(
+        "const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {"
+    )
+    if assets:
+        lines.extend(f"    &zmk_nvp_svg_visible_{index}," for index in range(len(assets)))
+    else:
+        lines.append("    0,")
+    lines.extend(["};", ""])
 
 
 def generate_sources(
@@ -308,20 +427,25 @@ def generate_sources(
     root = ET.fromstring(xml_text)
     if root.tag != "component":
         raise ValueError("root element must be <component>")
-    width, height, static_labels, bindings, background = collect_bindings(
-        root, screen_path
-    )
-    has_background = 1 if background is not None else 0
+    model = collect_bindings(root, screen_path)
+    has_background = 1 if model.static_images else 0
 
     header_lines = [
         "#pragma once",
         "#include <lvgl.h>",
         "#include <stdint.h>",
         "",
-        f"#define ZMK_NVP_SVG_WIDTH {width}",
-        f"#define ZMK_NVP_SVG_HEIGHT {height}",
-        f"#define ZMK_NVP_SVG_BINDING_COUNT {len(bindings)}",
-        "#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT 0",
+        "#ifndef LV_ATTRIBUTE_MEM_ALIGN",
+        "#define LV_ATTRIBUTE_MEM_ALIGN",
+        "#endif",
+        "#ifndef LV_ATTRIBUTE_LARGE_CONST",
+        "#define LV_ATTRIBUTE_LARGE_CONST",
+        "#endif",
+        "",
+        f"#define ZMK_NVP_SVG_WIDTH {model.width}",
+        f"#define ZMK_NVP_SVG_HEIGHT {model.height}",
+        f"#define ZMK_NVP_SVG_BINDING_COUNT {len(model.bindings)}",
+        f"#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT {len(model.visible_assets)}",
         f"#define ZMK_NVP_XML_HAS_BACKGROUND {has_background}",
         "",
         "enum zmk_nvp_svg_renderer {",
@@ -352,13 +476,15 @@ def generate_sources(
         "    uint8_t match_bit;",
         "};",
         "",
-        f"extern const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[{len(bindings) or 1}];",
+        f"extern const struct zmk_nvp_svg_binding "
+        f"zmk_nvp_svg_bindings[{len(model.bindings) or 1}];",
+        "extern const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[];",
         "void zmk_nvp_xml_layout_create(lv_obj_t *screen);",
         "",
     ]
 
     binding_rows = []
-    for binding in bindings:
+    for binding in model.bindings:
         binding_rows.append(
             "    { "
             + ", ".join(
@@ -366,7 +492,7 @@ def generate_sources(
                     _c_string(binding.field_id),
                     RENDERERS[binding.renderer],
                     str(binding.roles),
-                    "255",
+                    str(binding.asset_index),
                     str(binding.x),
                     str(binding.y),
                     str(binding.width),
@@ -399,8 +525,14 @@ def generate_sources(
         "#include <lvgl.h>",
         "",
     ]
-    if background is not None:
-        _emit_background_c(c_lines, background)
+    for index, image in enumerate(model.static_images):
+        symbol = (
+            "zmk_nvp_svg_background"
+            if index == 0
+            else f"zmk_nvp_xml_static_{index}"
+        )
+        _emit_i1_image_c(c_lines, symbol, image)
+    _emit_i2_visible_c(c_lines, model.visible_assets)
 
     c_lines.extend(
         [
@@ -425,18 +557,23 @@ def generate_sources(
         ]
     )
 
-    if background is not None:
+    for index, image in enumerate(model.static_images):
+        symbol = (
+            "zmk_nvp_svg_background"
+            if index == 0
+            else f"zmk_nvp_xml_static_{index}"
+        )
         c_lines.extend(
             [
                 "    {",
-                "        lv_obj_t *background = lv_image_create(screen);",
-                "        lv_image_set_src(background, &zmk_nvp_svg_background);",
-                f"        lv_obj_set_pos(background, {background.x}, {background.y});",
+                "        lv_obj_t *image = lv_image_create(screen);",
+                f"        lv_image_set_src(image, &{symbol});",
+                f"        lv_obj_set_pos(image, {image.x}, {image.y});",
                 "    }",
             ]
         )
 
-    for label in static_labels:
+    for label in model.static_labels:
         c_lines.extend(
             [
                 "    {",

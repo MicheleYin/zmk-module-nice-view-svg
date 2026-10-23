@@ -1,4 +1,4 @@
-"""Convert PNG backgrounds into LVGL I1 bitmaps for XML codegen/preview."""
+"""Convert PNG/SVG assets into LVGL I1/I2 bitmaps for XML codegen/preview."""
 
 from __future__ import annotations
 
@@ -41,13 +41,114 @@ def pack_i1_pixels(pixels: list[int], width: int, height: int) -> bytes:
     return bytes(packed)
 
 
+def pack_i2_pixels(pixels: list[int], width: int, height: int) -> bytes:
+    stride = (width + 3) // 4
+    packed = bytearray(stride * height)
+    for y in range(height):
+        for x in range(width):
+            pixel = pixels[y * width + x]
+            packed[y * stride + x // 4] |= pixel << (6 - 2 * (x % 4))
+    return bytes(packed)
+
+
 def pack_i1_png(data: bytes) -> tuple[int, int, bytes]:
     (width, height), pixels = monochrome_pixels_from_png(data)
     return width, height, pack_i1_pixels(pixels, width, height)
 
 
+def pack_i2_png(
+    data: bytes, bounds: tuple[int, int, int, int] | None = None
+) -> tuple[int, int, bytes]:
+    """Pack RGBA PNG to I2 (0=transparent, 1=fg, 2=bg). Optional crop bounds."""
+    Image = _load_pillow()
+    with Image.open(BytesIO(data)) as source:
+        rgba = source.convert("RGBA")
+        if bounds is not None:
+            x, y, width, height = bounds
+            rgba = rgba.crop((x, y, x + width, y + height))
+        else:
+            width, height = rgba.size
+        pixels = []
+        for red, green, blue, alpha in rgba.getdata():
+            if alpha < 128:
+                pixels.append(0)
+            elif red + green + blue < 3 * 128:
+                pixels.append(1)
+            else:
+                pixels.append(2)
+        return width, height, pack_i2_pixels(pixels, width, height)
+
+
+def rasterize_svg_file(
+    path: Path, width: int | None = None, height: int | None = None
+) -> bytes:
+    rasterizer = shutil.which("rsvg-convert")
+    if not rasterizer:
+        raise RuntimeError("SVG assets require rsvg-convert on PATH")
+    command = [rasterizer, "--format=png"]
+    if width is not None:
+        command.append(f"--width={width}")
+    if height is not None:
+        command.append(f"--height={height}")
+    command.append(str(path))
+    result = subprocess.run(command, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(
+            result.stderr.decode("utf-8", errors="replace") or "rsvg-convert failed"
+        )
+    return result.stdout
+
+
+def load_png_or_svg_bytes(
+    path: Path, width: int | None = None, height: int | None = None
+) -> bytes:
+    suffix = path.suffix.lower()
+    if suffix == ".svg":
+        return rasterize_svg_file(path, width, height)
+    if suffix in {".png", ".bmp", ".gif"}:
+        data = path.read_bytes()
+        if width is None and height is None:
+            return data
+        Image = _load_pillow()
+        with Image.open(BytesIO(data)) as image:
+            rgba = image.convert("RGBA")
+            if width is not None and height is not None:
+                rgba = rgba.resize((width, height))
+            elif width is not None:
+                ratio = width / rgba.width
+                rgba = rgba.resize((width, max(1, int(rgba.height * ratio))))
+            elif height is not None:
+                ratio = height / rgba.height
+                rgba = rgba.resize((max(1, int(rgba.width * ratio)), height))
+            output = BytesIO()
+            rgba.save(output, format="PNG")
+            return output.getvalue()
+    raise ValueError(f"unsupported image type: {path.suffix}")
+
+
+def load_i1_image(
+    path: Path, width: int | None = None, height: int | None = None
+) -> tuple[int, int, bytes]:
+    return pack_i1_png(load_png_or_svg_bytes(path, width, height))
+
+
+def load_i2_image(
+    path: Path, width: int | None = None, height: int | None = None
+) -> tuple[int, int, bytes]:
+    return pack_i2_png(load_png_or_svg_bytes(path, width, height))
+
+
 def load_i1_png(path: Path) -> tuple[int, int, bytes]:
-    return pack_i1_png(path.read_bytes())
+    return load_i1_image(path)
+
+
+def preview_rgba_image(
+    path: Path, width: int | None = None, height: int | None = None
+):
+    """Return a Pillow RGBA image for host preview compositing."""
+    Image = _load_pillow()
+    data = load_png_or_svg_bytes(path, width, height)
+    return Image.open(BytesIO(data)).convert("RGBA")
 
 
 def export_static_svg_background(svg_path: Path, png_path: Path) -> Path:

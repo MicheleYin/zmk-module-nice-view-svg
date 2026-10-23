@@ -8,7 +8,7 @@
     <lv_label text="L" x="4" y="2" />
     <zmk_status_bar field="battery.left.percent" x="22" y="7" width="15" height="4" />
     <zmk_status_when field="battery.left.charge" test="equals" value="charging">
-      <lv_label text="+" x="27" y="4" />
+      <lv_image src="../assets/bolt.svg" x="27" y="4" width="8" height="10" />
     </zmk_status_when>
     <zmk_status_text field="battery.left.percent" format="percent" x="48" y="13" font_size="11" />
 
@@ -16,7 +16,7 @@
     <lv_label text="R" x="4" y="17" />
     <zmk_status_bar field="battery.right.percent" x="22" y="22" width="15" height="4" />
     <zmk_status_when field="battery.right.charge" test="equals" value="charging">
-      <lv_label text="+" x="27" y="19" />
+      <lv_image src="../assets/bolt.svg" x="27" y="19" width="8" height="10" />
     </zmk_status_when>
     <zmk_status_text field="battery.right.percent" format="percent" x="48" y="28" font_size="11" />
 
@@ -27,7 +27,7 @@
     <!-- BLE profiles 1-5: active tile + connected mark -->
     <lv_label text="1" x="41" y="40" />
     <zmk_status_when field="ble.active_profile" test="equals" value="0">
-      <lv_label text="[1]" x="35" y="40" />
+      <lv_image src="../assets/profile_active.svg" x="35" y="37" width="19" height="15" />
     </zmk_status_when>
     <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="0">
       <lv_label text="*" x="48" y="37" />
@@ -35,7 +35,7 @@
 
     <lv_label text="2" x="66" y="40" />
     <zmk_status_when field="ble.active_profile" test="equals" value="1">
-      <lv_label text="[2]" x="60" y="40" />
+      <lv_image src="../assets/profile_active.svg" x="60" y="37" width="19" height="15" />
     </zmk_status_when>
     <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="1">
       <lv_label text="*" x="73" y="37" />
@@ -43,7 +43,7 @@
 
     <lv_label text="3" x="91" y="40" />
     <zmk_status_when field="ble.active_profile" test="equals" value="2">
-      <lv_label text="[3]" x="85" y="40" />
+      <lv_image src="../assets/profile_active.svg" x="85" y="37" width="19" height="15" />
     </zmk_status_when>
     <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="2">
       <lv_label text="*" x="98" y="37" />
@@ -51,7 +51,7 @@
 
     <lv_label text="4" x="116" y="40" />
     <zmk_status_when field="ble.active_profile" test="equals" value="3">
-      <lv_label text="[4]" x="110" y="40" />
+      <lv_image src="../assets/profile_active.svg" x="110" y="37" width="19" height="15" />
     </zmk_status_when>
     <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="3">
       <lv_label text="*" x="123" y="37" />
@@ -59,7 +59,7 @@
 
     <lv_label text="5" x="141" y="40" />
     <zmk_status_when field="ble.active_profile" test="equals" value="4">
-      <lv_label text="[5]" x="135" y="40" />
+      <lv_image src="../assets/profile_active.svg" x="135" y="37" width="19" height="15" />
     </zmk_status_when>
     <zmk_status_when field="ble.connected_profiles" test="bit_set" bit="4">
       <lv_label text="*" x="148" y="37" />

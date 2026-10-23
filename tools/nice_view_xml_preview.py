@@ -14,8 +14,10 @@ from typing import Any
 
 if __package__:
     from tools.nice_view_xml import load_catalog, validate_screen_text
+    from tools.nice_view_xml_assets import preview_rgba_image
 else:
     from nice_view_xml import load_catalog, validate_screen_text
+    from nice_view_xml_assets import preview_rgba_image
 
 ROLES = frozenset({"central", "peripheral"})
 
@@ -246,20 +248,26 @@ def preview_png(
     else:
         _collect_drawables(root, 0, 0, labels, bars)
 
-    image = Image.new("1", (width, height), 1)
+    image = Image.new("RGBA", (width, height), (255, 255, 255, 255))
     for element in root.iter("lv_image"):
         src = element.get("src")
-        if not src:
+        if not src or _is_hidden(element):
             continue
         resolved = _resolve_preview_image(src, screen_path)
         if resolved is None:
             continue
-        with Image.open(resolved) as background:
-            mono = background.convert("1")
-            x = _coord(element, "x")
-            y = _coord(element, "y")
-            image.paste(mono, (x, y))
-    draw = ImageDraw.Draw(image)
+        req_w = _coord(element, "width") or None
+        req_h = _coord(element, "height") or None
+        if req_w == 0:
+            req_w = None
+        if req_h == 0:
+            req_h = None
+        sprite = preview_rgba_image(resolved, req_w, req_h)
+        x = _coord(element, "x")
+        y = _coord(element, "y")
+        image.alpha_composite(sprite, (x, y))
+    mono = image.convert("1")
+    draw = ImageDraw.Draw(mono)
     font = ImageFont.load_default()
     for x, y, text in labels:
         draw.text((x, y), text, fill=0, font=font)
@@ -269,7 +277,7 @@ def preview_png(
             fill=0,
         )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    image.save(output_path, format="PNG")
+    mono.save(output_path, format="PNG")
 
 
 def _preview_with_wasm(xml_text: str, output_path: Path, width: int, height: int) -> None:

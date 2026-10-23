@@ -58,6 +58,10 @@ static const lv_image_dsc_t zmk_nvp_svg_background = {
     .data = zmk_nvp_svg_background_data,
 };
 
+const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {
+    0,
+};
+
 const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 14, 4, 24, 4, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 44, 10, 0, 0, 0, 0, 0, 12, 0, "monospace", "start", "percent", "", "", "", 0 },
@@ -65,8 +69,8 @@ const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "battery.right.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 44, 22, 0, 0, 0, 0, 0, 12, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "output.selected", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 76, 10, 0, 0, 0, 0, 0, 12, 0, "monospace", "start", "output-label", "", "", "", 0 },
     { "layer.index", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 116, 23, 0, 0, 0, 0, 0, 12, 0, "monospace", "start", "value", "", "", "", 0 },
-    { "display.half", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "L", "", "left", 0 },
-    { "display.half", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "R", "", "right", 0 },
+    { "display.half", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 100, 2, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "L", "", "left", 0 },
+    { "display.half", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 100, 2, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "R", "", "right", 0 },
 };
 
 static lv_color_t xml_foreground(void)
@@ -84,9 +88,9 @@ void zmk_nvp_xml_layout_create(lv_obj_t *screen)
         return;
     }
     {
-        lv_obj_t *background = lv_image_create(screen);
-        lv_image_set_src(background, &zmk_nvp_svg_background);
-        lv_obj_set_pos(background, 0, 0);
+        lv_obj_t *image = lv_image_create(screen);
+        lv_image_set_src(image, &zmk_nvp_svg_background);
+        lv_obj_set_pos(image, 0, 0);
     }
     {
         lv_obj_t *label = lv_label_create(screen);

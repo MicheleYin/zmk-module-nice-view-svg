@@ -111,26 +111,219 @@ static const lv_image_dsc_t zmk_nvp_svg_background = {
     .data = zmk_nvp_svg_background_data,
 };
 
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_0_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x00, 0x54, 0x01, 0x50, 0x05, 0x50, 0x15, 0x40, 0x55, 0x55, 0x01, 0x54, 0x01, 0x50, 0x05, 0x40,
+    0x05, 0x00, 0x04, 0x00,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_0 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 8,
+        .h = 10,
+        .stride = 2,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_0_data),
+    .data = zmk_nvp_svg_visible_0_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_1_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x00, 0x54, 0x01, 0x50, 0x05, 0x50, 0x15, 0x40, 0x55, 0x55, 0x01, 0x54, 0x01, 0x50, 0x05, 0x40,
+    0x05, 0x00, 0x04, 0x00,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_1 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 8,
+        .h = 10,
+        .stride = 2,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_1_data),
+    .data = zmk_nvp_svg_visible_1_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_2_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x15, 0x55, 0x55, 0x55, 0x50, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55,
+    0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55,
+    0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55,
+    0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55,
+    0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x15, 0x55, 0x55, 0x55, 0x50,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_2 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 19,
+        .h = 15,
+        .stride = 5,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_2_data),
+    .data = zmk_nvp_svg_visible_2_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_3_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x15, 0x55, 0x55, 0x55, 0x50, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55,
+    0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55,
+    0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55,
+    0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55,
+    0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x15, 0x55, 0x55, 0x55, 0x50,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_3 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 19,
+        .h = 15,
+        .stride = 5,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_3_data),
+    .data = zmk_nvp_svg_visible_3_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_4_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x15, 0x55, 0x55, 0x55, 0x50, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55,
+    0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55,
+    0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55,
+    0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55,
+    0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x15, 0x55, 0x55, 0x55, 0x50,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_4 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 19,
+        .h = 15,
+        .stride = 5,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_4_data),
+    .data = zmk_nvp_svg_visible_4_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_5_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x15, 0x55, 0x55, 0x55, 0x50, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55,
+    0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55,
+    0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55,
+    0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55,
+    0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x15, 0x55, 0x55, 0x55, 0x50,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_5 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 19,
+        .h = 15,
+        .stride = 5,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_5_data),
+    .data = zmk_nvp_svg_visible_5_data,
+};
+
+static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t
+    zmk_nvp_svg_visible_6_data[] = {
+#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND
+    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+#else
+    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+#endif
+    0x15, 0x55, 0x55, 0x55, 0x50, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55,
+    0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55,
+    0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55,
+    0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x55, 0x55, 0x55, 0x55,
+    0x54, 0x55, 0x55, 0x55, 0x55, 0x54, 0x15, 0x55, 0x55, 0x55, 0x50,
+};
+static const lv_image_dsc_t zmk_nvp_svg_visible_6 = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_I2,
+        .w = 19,
+        .h = 15,
+        .stride = 5,
+    },
+    .data_size = sizeof(zmk_nvp_svg_visible_6_data),
+    .data = zmk_nvp_svg_visible_6_data,
+};
+
+const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {
+    &zmk_nvp_svg_visible_0,
+    &zmk_nvp_svg_visible_1,
+    &zmk_nvp_svg_visible_2,
+    &zmk_nvp_svg_visible_3,
+    &zmk_nvp_svg_visible_4,
+    &zmk_nvp_svg_visible_5,
+    &zmk_nvp_svg_visible_6,
+};
+
 const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 22, 7, 15, 4, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },
-    { "battery.left.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "+", "", "charging", 0 },
+    { "battery.left.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 0, 27, 4, 8, 10, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "charging", 0 },
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 13, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "battery.right.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 22, 22, 15, 4, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },
-    { "battery.right.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "+", "", "charging", 0 },
+    { "battery.right.charge", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 1, 27, 19, 8, 10, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "charging", 0 },
     { "battery.right.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 48, 28, 0, 0, 0, 0, 0, 11, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "layer.index", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 140, 20, 0, 0, 0, 0, 0, 16, 0, "monospace", "start", "value", "", "", "", 0 },
-    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "[1]", "", "0", 0 },
-    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 0 },
-    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "[2]", "", "1", 0 },
-    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 1 },
-    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "[3]", "", "2", 0 },
-    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 2 },
-    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "[4]", "", "3", 0 },
-    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 3 },
-    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "[5]", "", "4", 0 },
-    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 4 },
+    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 2, 35, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "0", 0 },
+    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 48, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 0 },
+    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 3, 60, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "1", 0 },
+    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 73, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 1 },
+    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 4, 85, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "2", 0 },
+    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 98, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 2 },
+    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 5, 110, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "3", 0 },
+    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 123, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 3 },
+    { "ble.active_profile", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 6, 135, 37, 19, 15, 0, 0, 0, 10, 0, "monospace", "start", "value", "", "", "4", 0 },
+    { "ble.connected_profiles", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 148, 37, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "*", "", "set", 4 },
     { "output.selected", ZMK_NVP_SVG_RENDER_TEXT, 3, 255, 4, 66, 0, 0, 0, 0, 0, 10, 0, "monospace", "start", "output-label", "", "", "", 0 },
-    { "split.connected", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 0, 0, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "o", "", "true", 0 },
+    { "split.connected", ZMK_NVP_SVG_RENDER_VISIBLE, 3, 255, 149, 56, 24, 12, 0, 0, 0, 10, 0, "monospace", "start", "value", "o", "", "true", 0 },
 };
 
 static lv_color_t xml_foreground(void)
@@ -148,9 +341,9 @@ void zmk_nvp_xml_layout_create(lv_obj_t *screen)
         return;
     }
     {
-        lv_obj_t *background = lv_image_create(screen);
-        lv_image_set_src(background, &zmk_nvp_svg_background);
-        lv_obj_set_pos(background, 0, 0);
+        lv_obj_t *image = lv_image_create(screen);
+        lv_image_set_src(image, &zmk_nvp_svg_background);
+        lv_obj_set_pos(image, 0, 0);
     }
     {
         lv_obj_t *label = lv_label_create(screen);

@@ -10,9 +10,17 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
-    from tools.nice_view_xml_codegen import MAX_DYNAMIC_BINDINGS, write_generated
+    from tools.nice_view_xml_codegen import (
+        MAX_DYNAMIC_BINDINGS,
+        MAX_VISIBLE_ASSETS,
+        write_generated,
+    )
 else:
-    from nice_view_xml_codegen import MAX_DYNAMIC_BINDINGS, write_generated
+    from nice_view_xml_codegen import (
+        MAX_DYNAMIC_BINDINGS,
+        MAX_VISIBLE_ASSETS,
+        write_generated,
+    )
 
 TOOLS_DIR = Path(__file__).parent
 ROLES = frozenset({"central", "peripheral"})
@@ -218,18 +226,34 @@ def validate_screen_text(
 
     errors = _validate_dimensions(views[0], expected_dimensions)
     binding_count = 0
-    image_count = 0
+    visible_image_count = 0
+    parents = {child: parent for parent in root.iter() for child in parent}
     for element in root.iter():
         if element.tag in WIDGETS:
             binding_count += 1
         if element.tag == "lv_image":
-            image_count += 1
             src = element.get("src")
             if not src:
                 errors.append("<lv_image> needs a src attribute")
+            parent = parents.get(element)
+            if parent is not None and parent.tag == "zmk_status_when":
+                visible_image_count += 1
+                if element.get("width") is None or element.get("height") is None:
+                    errors.append(
+                        "<lv_image> under <zmk_status_when> should set width and height"
+                    )
+        if element.tag == "zmk_status_when":
+            children = [node for node in element if node.tag in {"lv_label", "lv_image"}]
+            if not children:
+                errors.append(
+                    "<zmk_status_when> needs a nested <lv_label> or <lv_image>"
+                )
         errors.extend(_validate_widget(element, fields))
-    if image_count > 1:
-        errors.append("only one <lv_image> background is supported per screen")
+    if visible_image_count > MAX_VISIBLE_ASSETS:
+        errors.append(
+            f"screen has {visible_image_count} visible image assets; "
+            f"budget is {MAX_VISIBLE_ASSETS}"
+        )
     if binding_count > MAX_DYNAMIC_BINDINGS:
         errors.append(
             f"screen has {binding_count} dynamic bindings; budget is {MAX_DYNAMIC_BINDINGS}"

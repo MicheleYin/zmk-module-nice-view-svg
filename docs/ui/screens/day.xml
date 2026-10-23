@@ -6,13 +6,13 @@
 
     <zmk_status_bar field="battery.left.percent" x="14" y="8" width="18" height="4" />
     <zmk_status_when field="battery.left.charge" test="equals" value="charging">
-      <lv_label text="+" x="13" y="5" />
+      <lv_image src="../assets/bolt.svg" x="13" y="5" width="8" height="10" />
     </zmk_status_when>
     <zmk_status_text field="battery.left.percent" format="percent" x="4" y="24" font_size="10" />
 
     <zmk_status_bar field="battery.right.percent" x="14" y="30" width="18" height="4" />
     <zmk_status_when field="battery.right.charge" test="equals" value="charging">
-      <lv_label text="+" x="13" y="27" />
+      <lv_image src="../assets/bolt.svg" x="13" y="27" width="8" height="10" />
     </zmk_status_when>
     <zmk_status_text field="battery.right.percent" format="percent" x="4" y="46" font_size="10" />
 

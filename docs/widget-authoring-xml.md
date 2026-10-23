@@ -23,15 +23,27 @@ Each screen file must be a single `<component>` with one `<view width="…" heig
 | `<zmk_status_bar field="…"/>` | Horizontal bar (integer/percent fields) |
 | `<zmk_status_arc field="…"/>` | Ring indicator |
 | `<zmk_status_when field="…" test="equals\|bit_set\|bit_clear" …>` | Conditional visibility |
-| `<lv_image src="../assets/….png"/>` | Full-screen I1 background (one per screen) |
+| `<lv_image src="../assets/….png\|.svg"/>` | Static I1 decoration (any count) |
+| `<zmk_status_when>…<lv_image src="…"/>` | Conditional I2 sprite (≤16 assets) |
 
 Optional `role="central"` or `role="peripheral"` limits a widget to one half.
 
-Static decoration uses `<lv_label>` (and other LVGL tags). Prefer absolute `x`/`y` so codegen and firmware stay aligned.
+Static decoration uses `<lv_label>` and `<lv_image>`. Prefer absolute `x`/`y` so codegen and firmware stay aligned.
 
-### Background images
+### Images and optional SVG embeds
 
-Export static art from an SVG (dynamic `data-nvp-*` nodes stripped):
+LVGL widgets handle status (text, bars, arcs). Decorative art that is not a native widget can be referenced as **offline** PNG or SVG files under `docs/ui/assets/`:
+
+```xml
+<lv_image src="../assets/default_bg.png" x="0" y="0" />
+<zmk_status_when field="battery.left.charge" test="equals" value="charging">
+  <lv_image src="../assets/bolt.svg" x="27" y="4" width="8" height="10" />
+</zmk_status_when>
+```
+
+`generate` rasterizes `.svg` with `rsvg-convert` and embeds **I1** (static) or **I2** (conditional) `lv_image` descriptors. Firmware never enables `LV_USE_SVG` / ThorVG.
+
+Export a full-screen background from an existing status SVG (dynamic nodes stripped):
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python -c "
@@ -41,7 +53,7 @@ export_static_svg_background(Path('docs/screens/default.svg'), Path('docs/ui/ass
 "
 ```
 
-`nice_view_xml.py generate` embeds the PNG as an LVGL I1 `lv_image` in `status_screen_gen.c`. Live preview pastes the same PNG under the status widgets.
+Conditional sprites under `zmk_status_when` should set `width` and `height` (placement bounds). Soft budget: 16 visible image assets; 22 dynamic bindings.
 
 ## Tooling
 

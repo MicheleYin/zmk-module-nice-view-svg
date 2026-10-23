@@ -296,6 +296,13 @@ static lv_obj_t *create_binding_object(const struct zmk_nvp_svg_binding *binding
     }
 
     if (binding->renderer == ZMK_NVP_SVG_RENDER_VISIBLE) {
+        if (binding->asset_index < ZMK_NVP_SVG_VISIBLE_ASSET_COUNT) {
+            lv_obj_t *image = lv_image_create(screen);
+            lv_image_set_src(image, zmk_nvp_svg_visible_assets[binding->asset_index]);
+            lv_obj_set_pos(image, binding->x, binding->y);
+            lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+            return image;
+        }
         lv_obj_t *label = lv_label_create(screen);
         lv_label_set_text(label, binding->prefix);
         lv_obj_set_pos(label, binding->x, binding->y);

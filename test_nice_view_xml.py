@@ -80,10 +80,12 @@ class NiceViewXmlValidationTests(unittest.TestCase):
 
         errors = validate_screen_text(xml, FIELDS)
 
-        self.assertEqual(len(errors), 3)
         self.assertTrue(any("value 'wifi' is invalid" in error for error in errors))
         self.assertTrue(any("bit 8 is outside" in error for error in errors))
         self.assertTrue(any("needs a value" in error for error in errors))
+        self.assertTrue(
+            any("needs a nested <lv_label> or <lv_image>" in error for error in errors)
+        )
 
     def test_rejects_unknown_status_attributes_and_formats(self):
         xml = make_screen(
@@ -142,8 +144,11 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         header = generated.with_suffix(".h").read_text()
         source = generated.read_text()
         self.assertIn("ZMK_NVP_XML_HAS_BACKGROUND 1", header)
+        self.assertRegex(header, r"ZMK_NVP_SVG_VISIBLE_ASSET_COUNT [1-9]")
         self.assertIn("zmk_nvp_svg_background", source)
+        self.assertIn("zmk_nvp_svg_visible_assets", source)
         self.assertIn("lv_image_create", source)
+        self.assertIn("LV_COLOR_FORMAT_I2", source)
 
 
 if __name__ == "__main__":

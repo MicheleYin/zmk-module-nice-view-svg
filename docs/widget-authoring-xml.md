@@ -12,8 +12,21 @@ and the same 22-binding budget.
 | `docs/ui/globals.xml` | Shared fonts/images notes |
 | `docs/ui/assets/*.png` | 1-bit background art (from SVG exports) |
 | `docs/ui/screens/*.xml` | Screen definitions (160×68 and 128×32 themes) |
+| `docs/ui/widgets/*.xml` | Reusable parameterized status widgets |
+| `docs/ui/samples/*.xml` | Composed screen examples |
 
 Each screen file must be a single `<component>` with one `<view width="…" height="…">`.
+
+### Reusable widgets
+
+Screens can include XML fragments with `<zmk_include src="…"/>`. Fragment files
+use a `<fragment>` root and `{{parameter}}` placeholders. Include attributes other
+than `src` provide the parameter values; paths in fragment images are resolved
+relative to the fragment and rewritten for the screen. Includes expand before
+validation, preview, and C generation.
+
+The widget library contains battery, layer, host-output, and split-link modules.
+See the composed layouts in `docs/ui/samples/` for 160×68 and 128×32 examples.
 
 ## Dynamic widgets
 

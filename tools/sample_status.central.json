@@ -12,6 +12,8 @@
     "wpm.current": 42,
     "output.selected": "usb",
     "layer.index": 0,
+    "layer.name": "BASE",
+    "split.connected": true,
     "display.half": "left"
   }
 }

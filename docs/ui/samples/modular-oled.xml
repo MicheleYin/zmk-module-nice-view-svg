@@ -1,0 +1,21 @@
+<component>
+  <view extends="lv_obj" width="128" height="32"
+        style_bg_color="0xffffff" scrollable="false">
+    <zmk_include src="../widgets/battery.xml" side="left" label="L"
+                 label_x="1" label_y="1" bar_x="10" bar_y="5"
+                 bar_width="25" bar_height="3" value_x="39" value_y="0"
+                 charge_x="58" charge_y="0" />
+    <zmk_include src="../widgets/battery.xml" side="right" label="R"
+                 label_x="1" label_y="14" bar_x="10" bar_y="18"
+                 bar_width="25" bar_height="3" value_x="39" value_y="13"
+                 charge_x="58" charge_y="13" />
+    <zmk_include src="../widgets/layer.xml" label_x="70" label_y="0"
+                 name_x="70" name_y="9" index_label_x="104"
+                 index_label_y="9" index_x="118" index_y="9" />
+    <zmk_include src="../widgets/output-mode.xml" label_x="70" label_y="23"
+                 value_x="101" value_y="23" />
+    <zmk_include src="../widgets/split-link.xml" label_x="1" label_y="24"
+                 value_x="36" value_y="24" connected_text="UP"
+                 disconnected_text="OFF" />
+  </view>
+</component>

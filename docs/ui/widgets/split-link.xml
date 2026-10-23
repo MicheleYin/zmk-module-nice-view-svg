@@ -1,0 +1,9 @@
+<fragment>
+  <lv_label text="SPLIT" x="{{label_x}}" y="{{label_y}}" />
+  <zmk_status_when field="split.connected" test="equals" value="true">
+    <lv_label text="{{connected_text}}" x="{{value_x}}" y="{{value_y}}" />
+  </zmk_status_when>
+  <zmk_status_when field="split.connected" test="equals" value="false">
+    <lv_label text="{{disconnected_text}}" x="{{value_x}}" y="{{value_y}}" />
+  </zmk_status_when>
+</fragment>

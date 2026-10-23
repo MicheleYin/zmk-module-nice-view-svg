@@ -10,12 +10,14 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from tools.nice_view_xml_components import expand_screen_file
     from tools.nice_view_xml_codegen import (
         MAX_DYNAMIC_BINDINGS,
         MAX_VISIBLE_ASSETS,
         write_generated,
     )
 else:
+    from nice_view_xml_components import expand_screen_file
     from nice_view_xml_codegen import (
         MAX_DYNAMIC_BINDINGS,
         MAX_VISIBLE_ASSETS,
@@ -229,6 +231,8 @@ def validate_screen_text(
     visible_image_count = 0
     parents = {child: parent for parent in root.iter() for child in parent}
     for element in root.iter():
+        if element.tag == "zmk_include":
+            errors.append("<zmk_include> must be expanded from a screen file")
         if element.tag in WIDGETS:
             binding_count += 1
         if element.tag == "lv_image":
@@ -264,10 +268,14 @@ def validate_screen_text(
 def validate_screen(
     path: Path, expected_dimensions: tuple[int, int] | None = None
 ) -> list[str]:
-    errors = validate_screen_text(path.read_text(), load_catalog(), expected_dimensions)
+    try:
+        xml_text = expand_screen_file(path)
+    except ValueError as error:
+        return [str(error)]
+    errors = validate_screen_text(xml_text, load_catalog(), expected_dimensions)
     # Resolve image paths relative to the screen file when validating on disk.
     try:
-        root = ET.fromstring(path.read_text())
+        root = ET.fromstring(xml_text)
     except ET.ParseError:
         return errors
     for element in root.iter("lv_image"):
@@ -284,7 +292,9 @@ def generate(screen: Path, output_dir: Path) -> None:
     errors = validate_screen(screen)
     if errors:
         raise ValueError("\n".join(errors))
-    header_path, source_path = write_generated(screen, output_dir)
+    header_path, source_path = write_generated(
+        screen, output_dir, expand_screen_file(screen)
+    )
     print(f"Generated {header_path}")
     print(f"Generated {source_path}")
 
@@ -346,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
 
         values = json.loads(args.values.read_text()).get("values", {})
         xml = preview_xml_text(
-            args.screen.read_text(),
+            expand_screen_file(args.screen),
             load_catalog(),
             values,
             args.role,

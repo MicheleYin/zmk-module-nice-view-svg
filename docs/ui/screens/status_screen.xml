@@ -10,7 +10,7 @@
     <zmk_status_when field="battery.left.charge" test="equals" value="charging">
       <lv_image src="../assets/bolt.svg" x="27" y="4" width="8" height="10" />
     </zmk_status_when>
-    <zmk_status_text field="battery.left.percent" format="percent" x="48" y="13" font_size="11" />
+    <zmk_status_text field="battery.left.percent" format="percent" x="48" y="3" font_size="11" />
 
     <!-- Right battery -->
     <lv_label text="R" x="4" y="17" />
@@ -18,7 +18,7 @@
     <zmk_status_when field="battery.right.charge" test="equals" value="charging">
       <lv_image src="../assets/bolt.svg" x="27" y="19" width="8" height="10" />
     </zmk_status_when>
-    <zmk_status_text field="battery.right.percent" format="percent" x="48" y="28" font_size="11" />
+    <zmk_status_text field="battery.right.percent" format="percent" x="48" y="18" font_size="11" />
 
     <!-- Layer -->
     <lv_label text="LAYER" x="90" y="8" />

@@ -590,8 +590,11 @@ def generate_sources(
     return "\n".join(header_lines).rstrip() + "\n", "\n".join(c_lines).rstrip() + "\n"
 
 
-def write_generated(screen_path: Path, output_dir: Path) -> tuple[Path, Path]:
-    xml_text = screen_path.read_text()
+def write_generated(
+    screen_path: Path, output_dir: Path, xml_text: str | None = None
+) -> tuple[Path, Path]:
+    if xml_text is None:
+        xml_text = screen_path.read_text()
     header, source = generate_sources(xml_text, screen_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     header_path = output_dir / "status_screen_gen.h"

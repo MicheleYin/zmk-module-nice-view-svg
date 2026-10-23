@@ -32,7 +32,8 @@ The pixel positions and widget bounds are listed in [the widget restyle proposal
 Component XML under `docs/ui/` uses the same `tools/status_fields.json` catalog as SVG.
 Validate / generate / live-preview, then enable `CONFIG_ZMK_SVG_LVGL_XML=y` in firmware.
 Decorative art can be PNG or SVG files referenced with `<lv_image src="…">` (rasterized
-offline into I1/I2). Details: [LVGL XML authoring](docs/widget-authoring-xml.md).
+offline into I1/I2). Reusable battery, layer, output, and split widgets are composed in
+`docs/ui/samples/`. Details: [LVGL XML authoring](docs/widget-authoring-xml.md).
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py validate docs/ui/screens/status_screen.xml

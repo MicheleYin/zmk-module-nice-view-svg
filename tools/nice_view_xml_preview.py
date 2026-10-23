@@ -54,7 +54,8 @@ def _matches(field: dict[str, Any], element: ET.Element, value: Any) -> bool:
     test = element.get("test")
     if test in {"equals", "not_equals"}:
         expected = element.get("value", "")
-        matched = str(value) == expected
+        actual = str(value).lower() if field["type"] == "boolean" else str(value)
+        matched = actual == expected
         return matched if test == "equals" else not matched
     if test == "bit_set":
         bit = int(element.get("bit", "0"))

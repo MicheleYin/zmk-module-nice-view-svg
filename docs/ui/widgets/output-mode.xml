@@ -1,0 +1,12 @@
+<fragment>
+  <lv_label text="HOST" x="{{label_x}}" y="{{label_y}}" />
+  <zmk_status_when field="output.selected" test="equals" value="ble">
+    <lv_label text="BLE" x="{{value_x}}" y="{{value_y}}" />
+  </zmk_status_when>
+  <zmk_status_when field="output.selected" test="equals" value="usb">
+    <lv_label text="USB" x="{{value_x}}" y="{{value_y}}" />
+  </zmk_status_when>
+  <zmk_status_when field="output.selected" test="equals" value="none">
+    <lv_label text="NONE" x="{{value_x}}" y="{{value_y}}" />
+  </zmk_status_when>
+</fragment>

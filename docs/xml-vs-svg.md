@@ -5,7 +5,7 @@ binding model (`struct zmk_nvp_svg_binding`, 22-binding budget, `status_fields.j
 
 | | SVG (legacy / default) | LVGL XML |
 | --- | --- | --- |
-| Source | `docs/screens/*.svg`, `docs/examples/*.svg` | `docs/ui/screens/*.xml` + `docs/ui/assets/*` |
+| Source | `docs/screens/*.svg`, `docs/examples/*.svg` | `docs/ui/screens/*.xml`, `docs/ui/widgets/*.xml`, `docs/ui/samples/*.xml` |
 | Tools | `tools/nice_view_svg.py`, `nice_view_svg_live.py` | `tools/nice_view_xml.py`, `nice_view_xml_live.py` |
 | Generate output | `src/generated_*.h` (I1 bg + I2 sprites in one header) | `src/generated_xml/<theme>/status_screen_gen.{c,h}` |
 | Firmware | `src/svg_screen.c` | `src/xml_screen.c` when `CONFIG_ZMK_SVG_LVGL_XML=y` |
@@ -44,7 +44,7 @@ Firmware never runs LVGL `LV_USE_SVG` / ThorVG. Both paths bake bitmaps at gener
 | `not_equals` | Supported | Validated; not mapped in codegen |
 | Bounds / transforms | `data-nvp-bounds` + transform-aware crop | Soft `width`/`height` on images |
 | Theme richness | Full day/night/OLED SVG art + sprites | Thinner overlays; fewer icons |
-| Example gallery | Many `docs/examples/*` | Screens + `basic-status.xml` |
+| Example gallery | Many `docs/examples/*` | Parameterized widgets + three composed screens |
 | Tests | Large `test_nice_view_svg.py` | Smaller `test_nice_view_xml.py` |
 | OLED AUTO | DT size selects header | Needs `CONFIG_ZMK_SVG_LVGL_XML_OLED=y` |
 

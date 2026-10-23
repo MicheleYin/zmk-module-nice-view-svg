@@ -1,0 +1,7 @@
+<fragment>
+  <lv_label text="LAYER" x="{{label_x}}" y="{{label_y}}" />
+  <zmk_status_text field="layer.name" role="central" x="{{name_x}}"
+                    y="{{name_y}}" />
+  <lv_label text="#" x="{{index_label_x}}" y="{{index_label_y}}" />
+  <zmk_status_text field="layer.index" x="{{index_x}}" y="{{index_y}}" />
+</fragment>

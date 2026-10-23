@@ -3,12 +3,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.nice_view_xml import load_catalog, validate_screen_text
+from tools.nice_view_xml import load_catalog, validate_screen, validate_screen_text
 from tools.nice_view_xml_assets import (
     export_static_svg_background,
     monochrome_pixels_from_png,
 )
 from tools.nice_view_xml_codegen import write_generated
+from tools.nice_view_xml_components import expand_screen_file
+from tools.nice_view_xml_live import build_preview_config
+from tools.nice_view_xml_preview import preview_xml_text
 
 
 FIELDS = load_catalog()
@@ -140,6 +143,64 @@ class NiceViewXmlValidationTests(unittest.TestCase):
         self.assertIn("ZMK_NVP_SVG_BINDING_COUNT 2", header)
         self.assertIn("zmk_nvp_svg_bindings", header)
         self.assertIn("zmk_nvp_xml_layout_create", source)
+
+    def test_widget_includes_expand_validate_and_generate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_dir = Path(temp_dir) / "screens"
+            widget_dir = Path(temp_dir) / "widgets"
+            screen_dir.mkdir()
+            widget_dir.mkdir()
+            (widget_dir / "layer.xml").write_text(
+                '<fragment><zmk_status_text field="layer.{{kind}}" '
+                'x="{{x}}" y="4"/></fragment>'
+            )
+            screen_path = screen_dir / "sample.xml"
+            screen_path.write_text(
+                '<component><view width="160" height="68">'
+                '<zmk_include src="../widgets/layer.xml" kind="index" x="8"/>'
+                "</view></component>"
+            )
+
+            expanded = expand_screen_file(screen_path)
+            self.assertIn('field="layer.index"', expanded)
+            self.assertNotIn("zmk_include", expanded)
+            self.assertEqual(validate_screen(screen_path), [])
+            header_path, _ = write_generated(
+                screen_path, screen_dir / "generated", expanded
+            )
+            header = header_path.read_text()
+
+        self.assertIn("ZMK_NVP_SVG_BINDING_COUNT 1", header)
+
+    def test_modular_samples_expand_validate_and_generate(self):
+        samples = Path(__file__).parent / "docs" / "ui" / "samples"
+        for path in sorted(samples.glob("*.xml")):
+            with self.subTest(sample=path.name), tempfile.TemporaryDirectory() as temp_dir:
+                self.assertEqual(validate_screen(path), [])
+                expanded = expand_screen_file(path)
+                self.assertNotIn("zmk_include", expanded)
+                preview = build_preview_config(path)
+                self.assertTrue(preview["bindings"])
+                header_path, _ = write_generated(
+                    path, Path(temp_dir), expanded
+                )
+                header = header_path.read_text()
+                self.assertIn("ZMK_NVP_SVG_BINDING_COUNT", header)
+
+    def test_preview_matches_boolean_when_values(self):
+        xml = make_screen(
+            '<zmk_status_when field="split.connected" test="equals" value="true">'
+            '<lv_label text="LINKED"/></zmk_status_when>'
+            '<zmk_status_when field="split.connected" test="equals" value="false">'
+            '<lv_label text="LOST"/></zmk_status_when>'
+        )
+
+        for value, expected in ((True, "LINKED"), (False, "LOST")):
+            with self.subTest(value=value):
+                rendered = preview_xml_text(
+                    xml, FIELDS, {"split.connected": value}, "central"
+                )
+                self.assertIn(f'text="{expected}"', rendered)
 
     def test_ui_screens_validate_and_embed_background(self):
         from tools.nice_view_xml import validate_screen

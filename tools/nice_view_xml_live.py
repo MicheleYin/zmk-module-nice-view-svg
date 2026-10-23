@@ -10,14 +10,24 @@ from typing import Any
 from urllib.parse import urlsplit
 
 if __package__:
-    from tools.nice_view_xml import WIDGETS, load_catalog, validate_screen_text
+    from tools.nice_view_xml import (
+        WIDGETS,
+        expand_screen_file,
+        load_catalog,
+        validate_screen_text,
+    )
     from tools.nice_view_xml_preview import (
         ROLES,
         preview_png,
         preview_xml_text,
     )
 else:
-    from nice_view_xml import WIDGETS, load_catalog, validate_screen_text
+    from nice_view_xml import (
+        WIDGETS,
+        expand_screen_file,
+        load_catalog,
+        validate_screen_text,
+    )
     from nice_view_xml_preview import ROLES, preview_png, preview_xml_text
 
 TOOLS_DIR = Path(__file__).parent
@@ -63,7 +73,7 @@ def build_preview_config(
         raise ValueError(f"unknown display role: {initial_role}")
 
     fields = load_catalog(TOOLS_DIR / "status_fields.json")
-    xml_text = screen_path.read_text()
+    xml_text = expand_screen_file(screen_path)
     errors = validate_screen_text(xml_text, fields)
     if errors:
         raise ValueError("\n".join(errors))
@@ -229,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         fields = load_catalog(TOOLS_DIR / "status_fields.json")
         server = LivePreviewServer(("127.0.0.1", arguments.port), LivePreviewHandler)
         server.preview_config = config
-        server.xml_text = arguments.screen.read_text()
+        server.xml_text = expand_screen_file(arguments.screen)
         server.fields = fields
     except (OSError, TypeError, ValueError) as error:
         print(error)

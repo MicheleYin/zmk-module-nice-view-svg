@@ -277,7 +277,10 @@ def _resolve_preview_image(src: str, screen_path: Path | None) -> Path | None:
 
 
 def preview_png(
-    xml_text: str, output_path: Path, screen_path: Path | None = None
+    xml_text: str,
+    output_path: Path,
+    screen_path: Path | None = None,
+    dither_override: str | None = None,
 ) -> None:
     root = ET.fromstring(xml_text)
     view = root.find("view")
@@ -299,7 +302,15 @@ def preview_png(
         / "web"
         / "preview.js"
     )
-    if wasm_js.exists():
+    selected_algorithms = {
+        dither_override or element.get("dither", "none")
+        for element in root.iter("lv_image")
+    }
+    if (
+        wasm_js.exists()
+        and dither_override is None
+        and selected_algorithms == {"none"}
+    ):
         _preview_with_wasm(xml_text, output_path, width, height, screen_path)
         return
 
@@ -325,7 +336,12 @@ def preview_png(
             req_w = None
         if req_h == 0:
             req_h = None
-        sprite = preview_rgba_image(resolved, req_w, req_h)
+        sprite = preview_rgba_image(
+            resolved,
+            req_w,
+            req_h,
+            dither_override or element.get("dither", "none"),
+        )
         x = _coord(element, "x")
         y = _coord(element, "y")
         image.alpha_composite(sprite, (x, y))

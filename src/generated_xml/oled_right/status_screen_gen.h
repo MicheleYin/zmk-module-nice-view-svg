@@ -13,6 +13,7 @@
 #define ZMK_NVP_SVG_HEIGHT 32
 #define ZMK_NVP_SVG_BINDING_COUNT 8
 #define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT 0
+#define ZMK_NVP_SVG_ANIMATION_COUNT 0
 #define ZMK_NVP_XML_HAS_BACKGROUND 0
 
 enum zmk_nvp_svg_renderer {
@@ -43,6 +44,22 @@ struct zmk_nvp_svg_binding {
     uint8_t match_bit;
 };
 
+struct zmk_nvp_svg_animation {
+    const lv_image_dsc_t *const *frames;
+    const uint32_t *durations_ms;
+    uint16_t frame_count;
+    uint32_t repeat_count;
+};
+
 extern const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[8];
 extern const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[];
+extern const uint8_t zmk_nvp_svg_visible_animation_indices[];
+extern const struct zmk_nvp_svg_animation zmk_nvp_svg_animations[1];
+lv_obj_t *zmk_nvp_xml_animation_create(
+    lv_obj_t *parent, const struct zmk_nvp_svg_animation *animation,
+    int16_t x, int16_t y, bool initially_paused);
+void zmk_nvp_xml_animation_attach(
+    lv_obj_t *image, const struct zmk_nvp_svg_animation *animation,
+    bool initially_paused);
+void zmk_nvp_xml_animation_set_paused(lv_obj_t *image, bool paused);
 void zmk_nvp_xml_layout_create(lv_obj_t *screen);

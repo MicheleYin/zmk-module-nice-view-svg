@@ -37,7 +37,8 @@ split-link, and split-indicator fragments. See `docs/ui/samples/` for composed
 | `<zmk_status_arc field="…"/>` | Ring indicator |
 | `<zmk_status_when field="…" test="equals\|bit_set\|bit_clear" …>` | Conditional visibility |
 | `<lv_image src="../assets/….png\|.svg"/>` | Static I1 decoration (any count) |
-| `<zmk_status_when>…<lv_image src="…"/>` | Conditional I2 sprite (≤16 assets) |
+| `<lv_image src="../assets/….gif"/>` | Animated I1 image |
+| `<zmk_status_when>…<lv_image src="…"/>` | Conditional I2 sprite or animation (≤16 assets) |
 
 Optional `role="central"` or `role="peripheral"` limits a widget to one half.
 
@@ -45,16 +46,59 @@ Static decoration uses `<lv_label>` and `<lv_image>`. Prefer absolute `x`/`y` so
 
 ### Offline Artwork
 
-LVGL widgets handle status (text, bars, arcs). Decorative art that is not a native widget can be referenced as **offline** PNG or SVG files under `docs/ui/assets/`:
+LVGL widgets handle status (text, bars, arcs). Decorative art that is not a native widget can be referenced as **offline** PNG, SVG, or GIF files under `docs/ui/assets/`:
 
 ```xml
-<lv_image src="../assets/default_bg.png" x="0" y="0" />
+<lv_image src="../assets/default_bg.png" x="0" y="0" dither="floyd-steinberg" />
 <zmk_status_when field="battery.left.charge" test="equals" value="charging">
   <lv_image src="../assets/bolt.svg" x="27" y="4" width="8" height="10" />
 </zmk_status_when>
 ```
 
 `generate` rasterizes `.svg` with `rsvg-convert` and embeds **I1** (static) or **I2** (conditional) `lv_image` descriptors. Firmware never enables `LV_USE_SVG` / ThorVG.
+
+Animated GIFs are converted during generation into monochrome frames with their
+frame delays and loop count. Firmware advances frames with LVGL timers; it does
+not use the runtime GIF decoder. Each GIF is limited to 64 frames and 32 KiB of
+packed frame data. Delays are clamped to 20–60000 ms. Conditional animations
+pause while hidden. The gallery emits an animation contact sheet beside each
+screen preview. Static and animated images accept `dither="none"`,
+`dither="floyd-steinberg"`, `dither="atkinson"`, or `dither="bayer"`. This is
+applied only to that image's pixels; status text and widgets stay crisp. The
+default is `none`. The `--dither` option on `generate`, `preview`, and the gallery
+command overrides every image for quick comparisons.
+
+| Algorithm | Appearance |
+| --- | --- |
+| `none` | Hard threshold; crisp flat shapes, but midtone detail is lost |
+| `floyd-steinberg` | Fine gradients with error diffused into nearby pixels |
+| `atkinson` | Higher-contrast texture with less error spread; often suits tiny screens |
+| `bayer` | Regular ordered pattern; consistent texture with visible dots |
+
+### Rasterization and Edges
+
+Raster PNG, BMP, and GIF sources are resized with nearest-neighbor sampling when
+`width` or `height` is specified. This keeps pixel-art edges sharp; prepare artwork
+at its intended size when smooth scaling is desired. SVG sources are rasterized
+offline by `rsvg-convert` at the requested dimensions, including vector
+antialiasing, then converted to monochrome. Dithering runs after resizing and
+grayscale conversion.
+
+Opaque assets are composited over white before conversion. Conditional images use
+I2: alpha below 128 remains transparent, while visible pixels become foreground or
+background. Dithering only changes that foreground/background decision; it does
+not add gray levels or alter the transparency mask.
+
+For a quick gallery comparison, override all image attributes without editing XML:
+
+```sh
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/render_xml_gallery.py --dither floyd-steinberg
+```
+
+Or set `dither="atkinson"` on an individual `<lv_image>`. The CLI override takes
+precedence. Sample PNG comparisons, the full-screen animated GIF, and its contact
+sheet are generated under `docs/ui/gallery/`.
 
 SVG is supported only as offline artwork. The background exporter strips dynamic
 nodes and SVG text; author status text as XML `<lv_label>` widgets to avoid drawing
@@ -80,6 +124,10 @@ uv run --isolated --with-requirements tools/requirements.txt \
   python tools/nice_view_xml.py generate docs/ui/screens/nice-view-left.xml \
   --output-dir src/generated_xml/nice_view_left
 
+# Compare image conversion algorithms across the screen gallery
+uv run --isolated --with-requirements tools/requirements.txt \
+  python tools/render_xml_gallery.py --dither atkinson
+
 uv run --isolated --with-requirements tools/requirements.txt \
   python tools/nice_view_xml_live.py docs/ui/screens/nice-view-left.xml
 
@@ -102,6 +150,9 @@ cmake --build build/lvgl_wasm
 uv run --isolated --with-requirements tools/requirements.txt \
   python tools/render_xml_gallery.py
 ```
+
+Nice!View sample screens and their previews are in `docs/ui/samples/` and
+`docs/ui/gallery/sample-*`; they include static PNG and animated GIF examples.
 
 Regenerate committed `status_screen_gen.c` / `.h` before flashing when XML changes.
 

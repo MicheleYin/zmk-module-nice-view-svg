@@ -1,0 +1,16 @@
+<!-- Small animated GIF example with status readouts kept outside the artwork. -->
+<component>
+  <view extends="lv_obj" width="160" height="68"
+        style_bg_color="0xffffff" style_pad_all="0" scrollable="false">
+    <lv_label text="ANIM" x="2" y="4" font_size="8" font_family="monospace" />
+    <lv_label text="LAY" x="138" y="4" font_size="8" font_family="monospace" />
+    <zmk_status_text field="layer.index" x="138" y="16" font_size="8" />
+    <lv_image src="../assets/irelia-sprite.gif" x="24" y="2"
+          width="112" height="63" dither="atkinson" />
+    <zmk_status_text field="battery.left.percent" format="percent"
+             x="2" y="48" font_size="8" />
+    <lv_label text="OUT" x="138" y="36" font_size="8" font_family="monospace" />
+    <zmk_status_text field="output.selected" format="output-label"
+             x="158" y="48" font_size="8" anchor="end" />
+  </view>
+</component>

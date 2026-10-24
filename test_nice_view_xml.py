@@ -1,9 +1,10 @@
+from io import BytesIO
+from pathlib import Path
 import shutil
 import threading
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 from PIL import Image, ImageDraw
 from watchdog.observers import Observer
@@ -16,7 +17,10 @@ from tools.nice_view_xml import (
 )
 from tools.nice_view_xml_assets import (
     export_static_svg_background,
+    load_i1_gif_frames,
+    load_i2_gif_frames,
     monochrome_pixels_from_png,
+    pack_i2_png,
 )
 from tools.nice_view_xml_codegen import write_generated
 from tools.nice_view_xml_components import expand_screen_file
@@ -27,6 +31,10 @@ from tools.nice_view_xml_live import (
     build_preview_config,
 )
 from tools.nice_view_xml_preview import preview_png, preview_xml_text
+from tools.render_xml_gallery import (
+    render_animated_screen_gif,
+    render_animation_sheets,
+)
 
 
 FIELDS = load_catalog()
@@ -40,7 +48,243 @@ def make_screen(body: str = "", width: int = 160, height: int = 68) -> str:
     )
 
 
+def make_test_gif(path: Path, loop: int = 0) -> None:
+    frames = [Image.new("RGB", (8, 1), "white") for _ in range(2)]
+    ImageDraw.Draw(frames[0]).point((0, 0), fill="black")
+    ImageDraw.Draw(frames[1]).point((1, 0), fill="black")
+    frames[0].save(
+        path,
+        save_all=True,
+        append_images=frames[1:],
+        duration=[50, 120],
+        loop=loop,
+        disposal=2,
+        optimize=False,
+    )
+
+
 class NiceViewXmlValidationTests(unittest.TestCase):
+    def test_png_dither_algorithms_produce_distinct_pixels(self):
+        gradient = Image.linear_gradient("L").resize((16, 16))
+        output = BytesIO()
+        gradient.save(output, format="PNG")
+
+        results = {
+            algorithm: tuple(monochrome_pixels_from_png(output.getvalue(), algorithm)[1])
+            for algorithm in ("none", "floyd-steinberg", "atkinson", "bayer")
+        }
+
+        self.assertEqual(len(set(results.values())), 4)
+
+    def test_i2_png_dithering_preserves_transparent_pixels(self):
+        image = Image.new("RGBA", (8, 8), (128, 128, 128, 255))
+        image.putpixel((0, 0), (0, 0, 0, 0))
+        output = BytesIO()
+        image.save(output, format="PNG")
+
+        width, height, packed = pack_i2_png(
+            output.getvalue(), dither="floyd-steinberg"
+        )
+
+        self.assertEqual((width, height), (8, 8))
+        self.assertEqual(packed[0] >> 6, 0)
+
+    def test_codegen_honors_image_dither_and_cli_override(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            output_dir = Path(temp_dir) / "generated"
+            image_path = Path(temp_dir) / "gradient.png"
+            Image.linear_gradient("L").resize((16, 16)).save(image_path)
+            xml = make_screen(
+                '<lv_image src="gradient.png" x="0" y="0" dither="none" />'
+            )
+            screen_path.write_text(xml)
+
+            _, threshold_source = write_generated(
+                screen_path, output_dir / "threshold", xml
+            )
+            bayer_xml = xml.replace('dither="none"', 'dither="bayer"')
+            _, attribute_source = write_generated(
+                screen_path, output_dir / "attribute", bayer_xml
+            )
+            _, override_source = write_generated(
+                screen_path, output_dir / "override", xml, "bayer"
+            )
+            threshold_text = threshold_source.read_text()
+            attribute_text = attribute_source.read_text()
+            override_text = override_source.read_text()
+
+        self.assertNotEqual(threshold_text, override_text)
+        self.assertEqual(attribute_text, override_text)
+
+    def test_validation_rejects_unknown_image_dither(self):
+        xml = make_screen('<lv_image src="unused.png" dither="jarvis-judice" />')
+
+        errors = validate_screen_text(xml, FIELDS)
+
+        self.assertTrue(any("unsupported dither" in error for error in errors))
+
+    def test_preview_dither_changes_images_but_not_status_text(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            image_path = Path(temp_dir) / "gradient.png"
+            none_path = Path(temp_dir) / "none.png"
+            bayer_path = Path(temp_dir) / "bayer.png"
+            Image.linear_gradient("L").resize((16, 16)).save(image_path)
+            xml = make_screen(
+                '<lv_image src="gradient.png" x="0" y="0" width="16" '
+                'height="16" dither="bayer" />'
+                '<lv_label text="LAYER" x="20" y="50" font_size="8" />'
+            )
+            screen_path.write_text(xml)
+            fields = FIELDS
+            rendered = preview_xml_text(xml, fields, {}, "central")
+            preview_png(rendered, none_path, screen_path, "none")
+            preview_png(rendered, bayer_path, screen_path, "bayer")
+
+            none = Image.open(none_path).convert("1")
+            bayer = Image.open(bayer_path).convert("1")
+
+        self.assertNotEqual(
+            list(none.crop((0, 0, 16, 16)).getdata()),
+            list(bayer.crop((0, 0, 16, 16)).getdata()),
+        )
+        self.assertEqual(
+            list(none.crop((20, 50, 60, 64)).getdata()),
+            list(bayer.crop((20, 50, 60, 64)).getdata()),
+        )
+
+    def test_gif_frames_are_packed_with_individual_delays(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gif_path = Path(temp_dir) / "animation.gif"
+            make_test_gif(gif_path)
+
+            width, height, packed_frames, play_count = load_i1_gif_frames(gif_path)
+
+        self.assertEqual((width, height), (8, 1))
+        self.assertEqual([duration for _, duration in packed_frames], [50, 120])
+        self.assertEqual([bitmap[0] for bitmap, _ in packed_frames], [0x80, 0x40])
+        self.assertEqual(play_count, 0)
+
+    def test_i2_gif_frames_preserve_transparency(self):
+        frames = [Image.new("P", (4, 1), 0) for _ in range(2)]
+        palette = [255, 255, 255, 0, 0, 0] + [0, 0, 0] * 254
+        for frame in frames:
+            frame.putpalette(palette)
+        frames[0].putpixel((0, 0), 1)
+        frames[1].putpixel((1, 0), 1)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gif_path = Path(temp_dir) / "transparent.gif"
+            frames[0].save(
+                gif_path,
+                save_all=True,
+                append_images=frames[1:],
+                duration=[50, 120],
+                loop=0,
+                transparency=0,
+                disposal=2,
+                optimize=False,
+            )
+
+            width, height, packed_frames, _ = load_i2_gif_frames(gif_path)
+
+        self.assertEqual((width, height), (4, 1))
+        self.assertEqual([bitmap[0] for bitmap, _ in packed_frames], [0x40, 0x10])
+
+    def test_codegen_emits_animated_gif_frames_and_repeat_count(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            gif_path = Path(temp_dir) / "animation.gif"
+            output_dir = Path(temp_dir) / "generated"
+            make_test_gif(gif_path, loop=1)
+            screen_path.write_text(
+                make_screen('<lv_image src="animation.gif" x="3" y="4"/>')
+            )
+
+            header_path, source_path = write_generated(screen_path, output_dir)
+            header = header_path.read_text()
+            source = source_path.read_text()
+
+        self.assertIn("ZMK_NVP_SVG_ANIMATION_COUNT 1", header)
+        self.assertIn("zmk_nvp_svg_animation_0_frame_0", source)
+        self.assertIn("zmk_nvp_svg_animation_0_frame_1", source)
+        self.assertIn("    50U,", source)
+        self.assertIn("    120U,", source)
+        self.assertIn("{ zmk_nvp_svg_animation_0_frames,", source)
+        self.assertIn("2, 2U", source)
+        self.assertIn("screen, &zmk_nvp_svg_animations[0],", source)
+
+    def test_codegen_emits_conditional_gif_as_transparent_i2_animation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            gif_path = Path(temp_dir) / "animation.gif"
+            output_dir = Path(temp_dir) / "generated"
+            make_test_gif(gif_path)
+            screen_path.write_text(
+                make_screen(
+                    '<zmk_status_when field="split.connected" test="equals" '
+                    'value="true"><lv_image src="animation.gif" x="3" y="4"/>'
+                    '</zmk_status_when>'
+                )
+            )
+
+            header_path, source_path = write_generated(screen_path, output_dir)
+            header = header_path.read_text()
+            source = source_path.read_text()
+
+        self.assertIn("ZMK_NVP_SVG_ANIMATION_COUNT 1", header)
+        self.assertIn(".cf = LV_COLOR_FORMAT_I2", source)
+        self.assertIn("zmk_nvp_svg_visible_animation_indices[] = {\n    0,", source)
+        self.assertIn("zmk_nvp_svg_animation_0_frame_1", source)
+
+    def test_gallery_writes_animation_contact_sheet(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            gif_path = Path(temp_dir) / "animation.gif"
+            output_dir = Path(temp_dir) / "gallery"
+            make_test_gif(gif_path)
+            screen_path.write_text(make_screen('<lv_image src="animation.gif"/>'))
+
+            outputs = render_animation_sheets(
+                screen_path.read_text(), screen_path, output_dir, "screen"
+            )
+
+            self.assertEqual(len(outputs), 1)
+            sheet = Image.open(outputs[0]).convert("1")
+
+        self.assertEqual(sheet.size, (16, 15))
+        self.assertEqual(sheet.getpixel((0, 14)), 0)
+        self.assertEqual(sheet.getpixel((9, 14)), 0)
+
+    def test_gallery_writes_full_screen_animated_gif(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            screen_path = Path(temp_dir) / "screen.xml"
+            gif_path = Path(temp_dir) / "animation.gif"
+            output_dir = Path(temp_dir) / "gallery"
+            make_test_gif(gif_path)
+            xml = make_screen(
+                '<lv_label text="ANIM" x="2" y="2" />'
+                '<lv_image src="animation.gif" x="40" y="10" '
+                'width="8" height="1" dither="atkinson" />'
+            )
+            screen_path.write_text(xml)
+            rendered_xml = preview_xml_text(xml, FIELDS, {}, "central")
+
+            output_path = render_animated_screen_gif(
+                rendered_xml, screen_path, output_dir, "sample", "atkinson"
+            )
+
+            self.assertIsNotNone(output_path)
+            with Image.open(output_path) as animation:
+                self.assertEqual(animation.size, (160, 68))
+                self.assertEqual(animation.n_frames, 2)
+                animation.seek(0)
+                first_frame = animation.convert("1").tobytes()
+                animation.seek(1)
+                second_frame = animation.convert("1").tobytes()
+                self.assertNotEqual(first_frame, second_frame)
+
     def test_preview_keeps_file_backed_images_below_lvgl_widgets(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             screen_path = Path(temp_dir) / "screen.xml"

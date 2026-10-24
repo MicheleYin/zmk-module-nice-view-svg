@@ -9,12 +9,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 if __package__:
-    from tools.nice_view_xml_assets import load_i1_image, load_i2_image
+    from tools.nice_view_xml_assets import (
+        DITHER_ALGORITHMS,
+        load_i1_gif_frames,
+        load_i1_image,
+        load_i2_gif_frames,
+        load_i2_image,
+    )
 else:
-    from nice_view_xml_assets import load_i1_image, load_i2_image
+    from nice_view_xml_assets import (
+        DITHER_ALGORITHMS,
+        load_i1_gif_frames,
+        load_i1_image,
+        load_i2_gif_frames,
+        load_i2_image,
+    )
 
 MAX_DYNAMIC_BINDINGS = 22
 MAX_VISIBLE_ASSETS = 16
+MAX_ANIMATION_FRAMES = 64
+MAX_ANIMATION_BYTES = 32768
 ROLES = {"central": 1, "peripheral": 2}
 RENDERERS = {
     "text": "ZMK_NVP_SVG_RENDER_TEXT",
@@ -23,6 +37,25 @@ RENDERERS = {
     "ring": "ZMK_NVP_SVG_RENDER_RING",
     "visible": "ZMK_NVP_SVG_RENDER_VISIBLE",
 }
+IF_INVERTED = "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND"
+ELSE_DIRECTIVE = "#else"
+ENDIF_DIRECTIVE = "#endif"
+I1_COLOR_PALETTE = [
+    IF_INVERTED,
+    "    0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,",
+    ELSE_DIRECTIVE,
+    "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff,",
+    ENDIF_DIRECTIVE,
+]
+I2_COLOR_PALETTE = [
+    IF_INVERTED,
+    "    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,",
+    "    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,",
+    ELSE_DIRECTIVE,
+    "    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,",
+    "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,",
+    ENDIF_DIRECTIVE,
+]
 
 
 @dataclass
@@ -45,6 +78,7 @@ class StaticImage:
     width: int
     height: int
     bitmap: bytes
+    animation_index: int = 255
     format_i2: bool = False
 
 
@@ -53,6 +87,22 @@ class VisibleAsset:
     width: int
     height: int
     bitmap: bytes
+    animation_index: int = 255
+
+
+@dataclass
+class AnimationFrame:
+    bitmap: bytes
+    duration_ms: int
+
+
+@dataclass
+class Animation:
+    width: int
+    height: int
+    frames: list[AnimationFrame]
+    repeat_count: int
+    format_i2: bool
 
 
 @dataclass
@@ -85,6 +135,7 @@ class ScreenModel:
     static_images: list[StaticImage] = field(default_factory=list)
     bindings: list[BindingSpec] = field(default_factory=list)
     visible_assets: list[VisibleAsset] = field(default_factory=list)
+    animations: list[Animation] = field(default_factory=list)
 
 
 def _int_attr(element: ET.Element, name: str, default: int = 0) -> int:
@@ -177,6 +228,59 @@ def _resolve_image_path(src: str, screen_path: Path | None) -> Path:
     raise ValueError(f"lv_image src not found: {src}")
 
 
+def _load_image(
+    path: Path,
+    width: int | None,
+    height: int | None,
+    model: ScreenModel,
+    format_i2: bool,
+    dither: str,
+) -> tuple[int, int, bytes, int]:
+    if dither not in DITHER_ALGORITHMS:
+        raise ValueError(
+            f"unknown dithering algorithm '{dither}'; choose from "
+            f"{', '.join(DITHER_ALGORITHMS)}"
+        )
+    if path.suffix.lower() != ".gif":
+        loader = load_i2_image if format_i2 else load_i1_image
+        image_width, image_height, bitmap = loader(path, width, height, dither)
+        return image_width, image_height, bitmap, 255
+
+    loader = load_i2_gif_frames if format_i2 else load_i1_gif_frames
+    image_width, image_height, raw_frames, repeat_count = loader(
+        path, width, height, dither
+    )
+    if len(raw_frames) == 1:
+        return image_width, image_height, raw_frames[0][0], 255
+    if len(raw_frames) > MAX_ANIMATION_FRAMES:
+        raise ValueError(
+            f"GIF has {len(raw_frames)} frames; budget is {MAX_ANIMATION_FRAMES}"
+        )
+    total_bytes = sum(len(bitmap) for bitmap, _ in raw_frames)
+    if total_bytes > MAX_ANIMATION_BYTES:
+        raise ValueError(
+            f"GIF embeds {total_bytes} bytes of monochrome frames; "
+            f"budget is {MAX_ANIMATION_BYTES}"
+        )
+    if len(model.animations) >= 255:
+        raise ValueError("screen has too many animated images; budget is 255")
+
+    animation_index = len(model.animations)
+    model.animations.append(
+        Animation(
+            width=image_width,
+            height=image_height,
+            frames=[
+                AnimationFrame(bitmap=bitmap, duration_ms=duration)
+                for bitmap, duration in raw_frames
+            ],
+            repeat_count=repeat_count,
+            format_i2=format_i2,
+        )
+    )
+    return image_width, image_height, raw_frames[0][0], animation_index
+
+
 def _parent_map(root: ET.Element) -> dict[ET.Element, ET.Element]:
     return {child: parent for parent in root.iter() for child in parent}
 
@@ -190,7 +294,11 @@ def _is_under_when(element: ET.Element, parents: dict[ET.Element, ET.Element]) -
     return False
 
 
-def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> ScreenModel:
+def collect_bindings(
+    root: ET.Element,
+    screen_path: Path | None = None,
+    dither_override: str | None = None,
+) -> ScreenModel:
     views = root.findall("view")
     if len(views) != 1:
         raise ValueError("component must contain exactly one direct <view>")
@@ -213,7 +321,14 @@ def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> Scree
             image_path = _resolve_image_path(src, screen_path)
             req_w = _optional_positive_int(element, "width")
             req_h = _optional_positive_int(element, "height")
-            img_w, img_h, bitmap = load_i1_image(image_path, req_w, req_h)
+            img_w, img_h, bitmap, animation_index = _load_image(
+                image_path,
+                req_w,
+                req_h,
+                model,
+                format_i2=False,
+                dither=dither_override or element.get("dither", "none"),
+            )
             model.static_images.append(
                 StaticImage(
                     path=image_path,
@@ -222,6 +337,7 @@ def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> Scree
                     width=img_w,
                     height=img_h,
                     bitmap=bitmap,
+                    animation_index=animation_index,
                 )
             )
         elif element.tag == "lv_label" and element.get("field") is None:
@@ -334,7 +450,14 @@ def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> Scree
                 image_path = _resolve_image_path(src, screen_path)
                 req_w = _optional_positive_int(image_child, "width")
                 req_h = _optional_positive_int(image_child, "height")
-                img_w, img_h, bitmap = load_i2_image(image_path, req_w, req_h)
+                img_w, img_h, bitmap, animation_index = _load_image(
+                    image_path,
+                    req_w,
+                    req_h,
+                    model,
+                    format_i2=True,
+                    dither=dither_override or image_child.get("dither", "none"),
+                )
                 if len(model.visible_assets) >= MAX_VISIBLE_ASSETS:
                     raise ValueError(
                         f"screen has too many visible image assets; "
@@ -342,7 +465,12 @@ def collect_bindings(root: ET.Element, screen_path: Path | None = None) -> Scree
                     )
                 asset_index = len(model.visible_assets)
                 model.visible_assets.append(
-                    VisibleAsset(width=img_w, height=img_h, bitmap=bitmap)
+                    VisibleAsset(
+                        width=img_w,
+                        height=img_h,
+                        bitmap=bitmap,
+                        animation_index=animation_index,
+                    )
                 )
                 child = image_child
             elif label_child is not None:
@@ -384,19 +512,17 @@ def _c_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=True)
 
 
-def _emit_i1_image_c(lines: list[str], symbol: str, image: StaticImage) -> None:
-    stride = (image.width + 7) // 8
+def _emit_i1_image_c(
+    lines: list[str], symbol: str, image: StaticImage, format_i2: bool = False
+) -> None:
+    stride = (image.width + 3) // 4 if format_i2 else (image.width + 7) // 8
     lines.extend(
         [
             "static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t",
             f"    {symbol}_data[] = {{",
-            "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
-            "    0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff,",
-            "#else",
-            "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff,",
-            "#endif",
         ]
     )
+    lines.extend(I2_COLOR_PALETTE if format_i2 else I1_COLOR_PALETTE)
     for offset in range(0, len(image.bitmap), 16):
         chunk = image.bitmap[offset : offset + 16]
         lines.append("    " + ", ".join(f"0x{byte:02x}" for byte in chunk) + ",")
@@ -407,7 +533,7 @@ def _emit_i1_image_c(lines: list[str], symbol: str, image: StaticImage) -> None:
             f"static const lv_image_dsc_t {symbol} = {{",
             "    .header = {",
             "        .magic = LV_IMAGE_HEADER_MAGIC,",
-            "        .cf = LV_COLOR_FORMAT_I1,",
+            f"        .cf = {'LV_COLOR_FORMAT_I2' if format_i2 else 'LV_COLOR_FORMAT_I1'},",
             f"        .w = {image.width},",
             f"        .h = {image.height},",
             f"        .stride = {stride},",
@@ -422,18 +548,14 @@ def _emit_i1_image_c(lines: list[str], symbol: str, image: StaticImage) -> None:
 
 def _emit_i2_visible_c(lines: list[str], assets: list[VisibleAsset]) -> None:
     for index, asset in enumerate(assets):
+        if asset.animation_index != 255:
+            continue
         stride = (asset.width + 3) // 4
         lines.extend(
             [
                 "static const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t",
                 f"    zmk_nvp_svg_visible_{index}_data[] = {{",
-                "#if CONFIG_NICE_VIEW_WIDGET_INVERTED && !CONFIG_ZMK_SVG_WHITE_BACKGROUND",
-                "    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,",
-                "    0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,",
-                "#else",
-                "    0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff,",
-                "    0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,",
-                "#endif",
+                *I2_COLOR_PALETTE,
             ]
         )
         for offset in range(0, len(asset.bitmap), 16):
@@ -458,19 +580,115 @@ def _emit_i2_visible_c(lines: list[str], assets: list[VisibleAsset]) -> None:
         )
     lines.append("const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {")
     if assets:
-        lines.extend(
-            f"    &zmk_nvp_svg_visible_{index}," for index in range(len(assets))
-        )
+        for index, asset in enumerate(assets):
+            if asset.animation_index == 255:
+                lines.append(f"    &zmk_nvp_svg_visible_{index},")
+            else:
+                lines.append(
+                    f"    &zmk_nvp_svg_animation_{asset.animation_index}_frame_0,"
+                )
     else:
         lines.append("    0,")
     lines.extend(["};", ""])
+    lines.append("const uint8_t zmk_nvp_svg_visible_animation_indices[] = {")
+    if assets:
+        lines.extend(f"    {asset.animation_index}," for asset in assets)
+    else:
+        lines.append("    255,")
+    lines.extend(["};", ""])
 
 
-def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[str, str]:
+def _emit_animation_tables(lines: list[str], animations: list[Animation]) -> None:
+    for index, animation in enumerate(animations):
+        lines.append(
+            f"static const lv_image_dsc_t *const zmk_nvp_svg_animation_{index}_frames[] = {{"
+        )
+        lines.extend(
+            f"    &zmk_nvp_svg_animation_{index}_frame_{frame_index},"
+            for frame_index in range(len(animation.frames))
+        )
+        lines.extend(["};", ""])
+        lines.append(f"static const uint32_t zmk_nvp_svg_animation_{index}_durations[] = {{")
+        lines.extend(f"    {frame.duration_ms}U," for frame in animation.frames)
+        lines.extend(["};", ""])
+
+    lines.append("const struct zmk_nvp_svg_animation zmk_nvp_svg_animations[] = {")
+    if animations:
+        for index, animation in enumerate(animations):
+            lines.append(
+                "    { "
+                f"zmk_nvp_svg_animation_{index}_frames, "
+                f"zmk_nvp_svg_animation_{index}_durations, "
+                f"{len(animation.frames)}, {animation.repeat_count}U "
+                "},"
+            )
+    else:
+        lines.append("    { 0 },")
+    lines.extend(["};", ""])
+
+
+def _emit_image_descriptors(lines: list[str], model: ScreenModel) -> None:
+    for animation_index, animation in enumerate(model.animations):
+        for frame_index, frame in enumerate(animation.frames):
+            image = StaticImage(
+                path=Path(),
+                x=0,
+                y=0,
+                width=animation.width,
+                height=animation.height,
+                bitmap=frame.bitmap,
+            )
+            _emit_i1_image_c(
+                lines,
+                f"zmk_nvp_svg_animation_{animation_index}_frame_{frame_index}",
+                image,
+                format_i2=animation.format_i2,
+            )
+
+    for index, image in enumerate(model.static_images):
+        if image.animation_index != 255:
+            continue
+        symbol = (
+            "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
+        )
+        _emit_i1_image_c(lines, symbol, image)
+
+    _emit_i2_visible_c(lines, model.visible_assets)
+    _emit_animation_tables(lines, model.animations)
+
+
+def _emit_static_image_layout(lines: list[str], images: list[StaticImage]) -> None:
+    for index, image in enumerate(images):
+        if image.animation_index != 255:
+            lines.extend(
+                [
+                    "    zmk_nvp_xml_animation_create(",
+                    f"        screen, &zmk_nvp_svg_animations[{image.animation_index}],",
+                    f"        {image.x}, {image.y}, false);",
+                ]
+            )
+            continue
+        symbol = "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
+        lines.extend(
+            [
+                "    {",
+                "        lv_obj_t *image = lv_image_create(screen);",
+                f"        lv_image_set_src(image, &{symbol});",
+                f"        lv_obj_set_pos(image, {image.x}, {image.y});",
+                "    }",
+            ]
+        )
+
+
+def generate_sources(
+    xml_text: str,
+    screen_path: Path | None = None,
+    dither_override: str | None = None,
+) -> tuple[str, str]:
     root = ET.fromstring(xml_text)
     if root.tag != "component":
         raise ValueError("root element must be <component>")
-    model = collect_bindings(root, screen_path)
+    model = collect_bindings(root, screen_path, dither_override)
     has_background = 1 if model.static_images else 0
 
     header_lines = [
@@ -480,15 +698,16 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
         "",
         "#ifndef LV_ATTRIBUTE_MEM_ALIGN",
         "#define LV_ATTRIBUTE_MEM_ALIGN",
-        "#endif",
+        ENDIF_DIRECTIVE,
         "#ifndef LV_ATTRIBUTE_LARGE_CONST",
         "#define LV_ATTRIBUTE_LARGE_CONST",
-        "#endif",
+        ENDIF_DIRECTIVE,
         "",
         f"#define ZMK_NVP_SVG_WIDTH {model.width}",
         f"#define ZMK_NVP_SVG_HEIGHT {model.height}",
         f"#define ZMK_NVP_SVG_BINDING_COUNT {len(model.bindings)}",
         f"#define ZMK_NVP_SVG_VISIBLE_ASSET_COUNT {len(model.visible_assets)}",
+        f"#define ZMK_NVP_SVG_ANIMATION_COUNT {len(model.animations)}",
         f"#define ZMK_NVP_XML_HAS_BACKGROUND {has_background}",
         "",
         "enum zmk_nvp_svg_renderer {",
@@ -519,9 +738,30 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
         "    uint8_t match_bit;",
         "};",
         "",
-        f"extern const struct zmk_nvp_svg_binding "
-        f"zmk_nvp_svg_bindings[{len(model.bindings) or 1}];",
+        "struct zmk_nvp_svg_animation {",
+        "    const lv_image_dsc_t *const *frames;",
+        "    const uint32_t *durations_ms;",
+        "    uint16_t frame_count;",
+        "    uint32_t repeat_count;",
+        "};",
+        "",
+        (
+            f"extern const struct zmk_nvp_svg_binding "
+            f"zmk_nvp_svg_bindings[{len(model.bindings) or 1}];"
+        ),
         "extern const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[];",
+        "extern const uint8_t zmk_nvp_svg_visible_animation_indices[];",
+        (
+            f"extern const struct zmk_nvp_svg_animation "
+            f"zmk_nvp_svg_animations[{len(model.animations) or 1}];"
+        ),
+        "lv_obj_t *zmk_nvp_xml_animation_create(",
+        "    lv_obj_t *parent, const struct zmk_nvp_svg_animation *animation,",
+        "    int16_t x, int16_t y, bool initially_paused);",
+        "void zmk_nvp_xml_animation_attach(",
+        "    lv_obj_t *image, const struct zmk_nvp_svg_animation *animation,",
+        "    bool initially_paused);",
+        "void zmk_nvp_xml_animation_set_paused(lv_obj_t *image, bool paused);",
         "void zmk_nvp_xml_layout_create(lv_obj_t *screen);",
         "",
     ]
@@ -568,12 +808,7 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
         "#include <lvgl.h>",
         "",
     ]
-    for index, image in enumerate(model.static_images):
-        symbol = (
-            "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
-        )
-        _emit_i1_image_c(c_lines, symbol, image)
-    _emit_i2_visible_c(c_lines, model.visible_assets)
+    _emit_image_descriptors(c_lines, model)
 
     c_lines.extend(
         [
@@ -599,19 +834,7 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
         ]
     )
 
-    for index, image in enumerate(model.static_images):
-        symbol = (
-            "zmk_nvp_svg_background" if index == 0 else f"zmk_nvp_xml_static_{index}"
-        )
-        c_lines.extend(
-            [
-                "    {",
-                "        lv_obj_t *image = lv_image_create(screen);",
-                f"        lv_image_set_src(image, &{symbol});",
-                f"        lv_obj_set_pos(image, {image.x}, {image.y});",
-                "    }",
-            ]
-        )
+    _emit_static_image_layout(c_lines, model.static_images)
 
     for label in model.static_labels:
         c_lines.extend(_static_label_lines(label))
@@ -622,11 +845,14 @@ def generate_sources(xml_text: str, screen_path: Path | None = None) -> tuple[st
 
 
 def write_generated(
-    screen_path: Path, output_dir: Path, xml_text: str | None = None
+    screen_path: Path,
+    output_dir: Path,
+    xml_text: str | None = None,
+    dither_override: str | None = None,
 ) -> tuple[Path, Path]:
     if xml_text is None:
         xml_text = screen_path.read_text()
-    header, source = generate_sources(xml_text, screen_path)
+    header, source = generate_sources(xml_text, screen_path, dither_override)
     output_dir.mkdir(parents=True, exist_ok=True)
     header_path = output_dir / "status_screen_gen.h"
     source_path = output_dir / "status_screen_gen.c"

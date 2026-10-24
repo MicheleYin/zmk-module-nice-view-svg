@@ -71,8 +71,121 @@ struct field_value {
     const char *text;
 };
 
+struct xml_animation_playback {
+    lv_obj_t *image;
+    const struct zmk_nvp_svg_animation *animation;
+    lv_timer_t *timer;
+    uint16_t frame_index;
+    uint32_t completed_repeats;
+    bool paused;
+    struct xml_animation_playback *next;
+};
+
 static lv_obj_t *screen;
 static lv_obj_t *binding_objects[ZMK_NVP_SVG_BINDING_COUNT];
+static struct xml_animation_playback *xml_animations;
+
+static void animation_timer_cb(lv_timer_t *timer) {
+    struct xml_animation_playback *playback = lv_timer_get_user_data(timer);
+    uint16_t next_frame = playback->frame_index + 1;
+    if (next_frame >= playback->animation->frame_count) {
+        if (playback->animation->repeat_count != 0 &&
+            playback->completed_repeats + 1 >= playback->animation->repeat_count) {
+            lv_timer_delete(timer);
+            playback->timer = NULL;
+            return;
+        }
+        playback->completed_repeats++;
+        next_frame = 0;
+    }
+
+    playback->frame_index = next_frame;
+    lv_image_set_src(playback->image, playback->animation->frames[next_frame]);
+    lv_timer_set_period(timer, playback->animation->durations_ms[next_frame]);
+}
+
+static void animation_delete_event(lv_event_t *event) {
+    struct xml_animation_playback *playback = lv_event_get_user_data(event);
+    struct xml_animation_playback **current = &xml_animations;
+    while (*current && *current != playback) {
+        current = &(*current)->next;
+    }
+    if (*current == playback) {
+        *current = playback->next;
+    }
+    if (playback->timer) {
+        lv_timer_delete(playback->timer);
+    }
+    lv_free(playback);
+}
+
+void zmk_nvp_xml_animation_attach(
+    lv_obj_t *image, const struct zmk_nvp_svg_animation *animation, bool initially_paused) {
+    if (!image || !animation || !animation->frames || animation->frame_count == 0) {
+        return;
+    }
+
+    lv_image_set_src(image, animation->frames[0]);
+    if (animation->frame_count < 2) {
+        return;
+    }
+
+    struct xml_animation_playback *playback = lv_malloc(sizeof(*playback));
+    if (!playback) {
+        LOG_WRN("Unable to allocate GIF playback state; showing its first frame");
+        return;
+    }
+    *playback = (struct xml_animation_playback){
+        .image = image,
+        .animation = animation,
+        .paused = initially_paused,
+        .next = xml_animations,
+    };
+    playback->timer = lv_timer_create(animation_timer_cb, animation->durations_ms[0], playback);
+    if (!playback->timer ||
+        !lv_obj_add_event_cb(image, animation_delete_event, LV_EVENT_DELETE, playback)) {
+        if (playback->timer) {
+            lv_timer_delete(playback->timer);
+        }
+        lv_free(playback);
+        LOG_WRN("Unable to start GIF playback; showing its first frame");
+        return;
+    }
+    xml_animations = playback;
+    if (initially_paused) {
+        lv_timer_pause(playback->timer);
+    }
+}
+
+lv_obj_t *zmk_nvp_xml_animation_create(
+    lv_obj_t *parent, const struct zmk_nvp_svg_animation *animation, int16_t x, int16_t y,
+    bool initially_paused) {
+    if (!parent || !animation) {
+        return NULL;
+    }
+    lv_obj_t *image = lv_image_create(parent);
+    lv_obj_set_pos(image, x, y);
+    zmk_nvp_xml_animation_attach(image, animation, initially_paused);
+    return image;
+}
+
+void zmk_nvp_xml_animation_set_paused(lv_obj_t *image, bool paused) {
+    for (struct xml_animation_playback *playback = xml_animations; playback;
+         playback = playback->next) {
+        if (playback->image != image || playback->paused == paused) {
+            continue;
+        }
+        playback->paused = paused;
+        if (playback->timer) {
+            if (paused) {
+                lv_timer_pause(playback->timer);
+            } else {
+                lv_timer_resume(playback->timer);
+            }
+        }
+        return;
+    }
+}
 
 static lv_color_t foreground_color(void) {
     bool inverted = IS_ENABLED(CONFIG_NICE_VIEW_WIDGET_INVERTED) &&
@@ -305,6 +418,12 @@ static lv_obj_t *create_binding_object(const struct zmk_nvp_svg_binding *binding
             lv_image_set_src(image, zmk_nvp_svg_visible_assets[binding->asset_index]);
             lv_obj_set_pos(image, binding->x, binding->y);
             lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+            uint8_t animation_index =
+                zmk_nvp_svg_visible_animation_indices[binding->asset_index];
+            if (animation_index < ZMK_NVP_SVG_ANIMATION_COUNT) {
+                zmk_nvp_xml_animation_attach(
+                    image, &zmk_nvp_svg_animations[animation_index], true);
+            }
             return image;
         }
         lv_obj_t *label = lv_label_create(screen);
@@ -441,8 +560,10 @@ void zmk_nvp_xml_screen_update(const struct zmk_nvp_screen_state *state) {
         if (binding->renderer == ZMK_NVP_SVG_RENDER_VISIBLE) {
             if (field_matches(value, binding)) {
                 lv_obj_clear_flag(object, LV_OBJ_FLAG_HIDDEN);
+                zmk_nvp_xml_animation_set_paused(object, false);
             } else {
                 lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+                zmk_nvp_xml_animation_set_paused(object, true);
             }
         } else if (binding->renderer == ZMK_NVP_SVG_RENDER_RING) {
             if (!value.valid || value.is_text || value.number <= 0) {

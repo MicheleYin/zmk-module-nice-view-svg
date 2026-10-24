@@ -9,6 +9,14 @@ const lv_image_dsc_t *const zmk_nvp_svg_visible_assets[] = {
     0,
 };
 
+const uint8_t zmk_nvp_svg_visible_animation_indices[] = {
+    255,
+};
+
+const struct zmk_nvp_svg_animation zmk_nvp_svg_animations[] = {
+    { 0 },
+};
+
 const struct zmk_nvp_svg_binding zmk_nvp_svg_bindings[] = {
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_PERCENT, 3, 255, 14, 11, 0, 0, 0, 0, 0, 8, 0, "monospace", "start", "percent", "", "", "", 0 },
     { "battery.left.percent", ZMK_NVP_SVG_RENDER_BAR, 3, 255, 38, 6, 18, 3, 0, 0, 0, 0, 0, "monospace", "start", "value", "", "", "", 0 },

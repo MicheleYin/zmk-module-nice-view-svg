@@ -11,6 +11,7 @@ from typing import Any
 
 if __package__:
     from tools.nice_view_xml_components import expand_screen_file
+    from tools.nice_view_xml_assets import DITHER_ALGORITHMS
     from tools.nice_view_xml_codegen import (
         MAX_DYNAMIC_BINDINGS,
         MAX_VISIBLE_ASSETS,
@@ -18,11 +19,13 @@ if __package__:
     )
 else:
     from nice_view_xml_components import expand_screen_file
+    from nice_view_xml_assets import DITHER_ALGORITHMS
     from nice_view_xml_codegen import (
         MAX_DYNAMIC_BINDINGS,
         MAX_VISIBLE_ASSETS,
         write_generated,
     )
+
 
 TOOLS_DIR = Path(__file__).parent
 ROLES = frozenset({"central", "peripheral"})
@@ -240,6 +243,12 @@ def validate_screen_text(
             src = element.get("src")
             if not src:
                 errors.append("<lv_image> needs a src attribute")
+            dither = element.get("dither")
+            if dither is not None and dither not in DITHER_ALGORITHMS:
+                errors.append(
+                    f"<lv_image> has unsupported dither '{dither}'; choose from "
+                    f"{', '.join(DITHER_ALGORITHMS)}"
+                )
             parent = parents.get(element)
             if parent is not None and parent.tag == "zmk_status_when":
                 visible_image_count += 1
@@ -291,12 +300,14 @@ def validate_screen(
     return errors
 
 
-def generate(screen: Path, output_dir: Path) -> None:
+def generate(
+    screen: Path, output_dir: Path, dither_override: str | None = None
+) -> None:
     errors = validate_screen(screen)
     if errors:
         raise ValueError("\n".join(errors))
     header_path, source_path = write_generated(
-        screen, output_dir, expand_screen_file(screen)
+        screen, output_dir, expand_screen_file(screen), dither_override
     )
     print(f"Generated {header_path}")
     print(f"Generated {source_path}")
@@ -321,6 +332,11 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="directory for status_screen_gen.c/h",
     )
+    generate_parser.add_argument(
+        "--dither",
+        choices=DITHER_ALGORITHMS,
+        help="override dithering for every referenced image and GIF",
+    )
 
     preview_parser = subparsers.add_parser(
         "preview", help="render a PNG using expanded LVGL XML preview data"
@@ -331,6 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         "--role", choices=["central", "peripheral"], required=True
     )
     preview_parser.add_argument("--output", type=Path, required=True)
+    preview_parser.add_argument("--dither", choices=DITHER_ALGORITHMS)
 
     args = parser.parse_args(argv)
     if (
@@ -353,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[OK] {args.screen}")
             return 0
         if args.command == "generate":
-            generate(args.screen, args.output_dir)
+            generate(args.screen, args.output_dir, args.dither)
             return 0
         if __package__:
             from tools.nice_view_xml_preview import preview_png, preview_xml_text
@@ -367,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
             values,
             args.role,
         )
-        preview_png(xml, args.output, args.screen)
+        preview_png(xml, args.output, args.screen, args.dither)
         print(f"Rendered {args.output}")
         return 0
     except (OSError, TypeError, ValueError) as error:

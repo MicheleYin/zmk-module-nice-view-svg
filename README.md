@@ -3,8 +3,8 @@
 [![Build](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml/badge.svg?branch=main)](https://github.com/MicheleYin/zmk-module-svg/actions/workflows/zmk-module.yml)
 
 XML-authored status screens for Nice!View (160×68) and 128×32 SSD1306 OLEDs.
-Firmware uses generated LVGL C; SVG and PNG are supported only as offline artwork
-embedded during generation.
+Firmware uses generated LVGL C; SVG, PNG, and GIF artwork is processed offline
+and embedded during generation.
 
 - XML authoring: [docs/widget-authoring-xml.md](docs/widget-authoring-xml.md)
 - Paired preview gallery: [docs/ui/gallery](docs/ui/gallery/)
@@ -24,6 +24,20 @@ Each row shows central and peripheral status values in the matching left/right l
 | Nice!View (160×68) | <img src="docs/ui/gallery/nice-view-left.png" alt="Left Nice!View screen" width="320"> | <img src="docs/ui/gallery/nice-view-right.png" alt="Right Nice!View screen" width="320"> |
 | OLED (128×32) | <img src="docs/ui/gallery/oled-left.png" alt="Left OLED screen" width="320"> | <img src="docs/ui/gallery/oled-right.png" alt="Right OLED screen" width="320"> |
 
+Image conversion samples compare the same PNG with hard threshold and Bayer
+patterns, alongside an animated GIF using Atkinson dithering.
+
+| PNG: threshold | PNG: Bayer | GIF: Atkinson |
+| --- | --- | --- |
+| <img src="docs/ui/gallery/sample-nice-view-space-threshold.png" alt="PNG background with threshold conversion" width="320"> | <img src="docs/ui/gallery/sample-nice-view-space-bayer.png" alt="PNG background with Bayer dithering" width="320"> | <img src="docs/ui/gallery/sample-nice-view-motion-atkinson.png" alt="Animated GIF background with Atkinson dithering" width="320"> |
+
+The GIF below is the complete 160×68 screen rendered frame by frame, including
+status readouts. It animates in supported Markdown viewers. See the [frame contact
+sheet](docs/ui/gallery/sample-nice-view-motion-atkinson-animation-0.png) for every
+converted source frame.
+
+<img src="docs/ui/gallery/sample-nice-view-motion-atkinson.gif" alt="Animated full-screen Nice!View sample using an Atkinson-dithered GIF" width="640">
+
 Build the LVGL renderer and regenerate the gallery after changing screens, widgets,
 or artwork:
 
@@ -38,6 +52,15 @@ uv run --isolated --with-requirements tools/requirements.txt python tools/render
 Screen sources and reusable widgets live under `docs/ui/`. Use the same field catalog
 for validation, previews, and firmware generation. Live preview watches screen XML,
 nested widgets, and referenced artwork and refreshes when those files change.
+GIF artwork is converted offline into monochrome animation frames; the generated
+gallery includes frame contact sheets. See [XML authoring](docs/widget-authoring-xml.md)
+for frame limits, sample PNG/GIF screens, and image-only dithering choices. Compare
+algorithms quickly with:
+
+```sh
+uv run --isolated --with-requirements tools/requirements.txt \
+    python tools/render_xml_gallery.py --dither atkinson
+```
 
 ```sh
 uv run --isolated --with-requirements tools/requirements.txt python tools/nice_view_xml.py validate docs/ui/screens/nice-view-left.xml

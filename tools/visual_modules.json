@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "id": "background-image",
+      "label": "Image background",
+      "family": "Background",
+      "style": "Image",
+      "source": "docs/ui/widgets/background-image.xml",
+      "bounds": {"x": 0, "y": 0, "width": 160, "height": 68},
+      "defaults": {"image_src": "", "width": 160, "height": 68, "dither": "none"},
+      "controls": ["image_src", "dither"]
+    },
+    {
+      "id": "battery-signal",
+      "label": "Battery · Signal",
+      "family": "Battery",
+      "style": "Signal",
+      "source": "docs/ui/widgets/battery-signal.xml",
+      "bounds": {"x": 0, "y": 0, "width": 112, "height": 20},
+      "defaults": {"side": "left", "label": "L", "label_x": 0, "label_y": 5, "icon_x": 14, "icon_y": 2, "bar_x": 43, "bar_y": 8, "bar_width": 34, "value_x": 82, "value_y": 4, "charge_x": 102, "charge_y": 2},
+      "controls": ["side"]
+    },
+    {
+      "id": "battery-grid",
+      "label": "Battery · Grid",
+      "family": "Battery",
+      "style": "Grid",
+      "source": "docs/ui/widgets/battery-grid.xml",
+      "bounds": {"x": 0, "y": 0, "width": 112, "height": 20},
+      "defaults": {"side": "left", "label": "L", "label_x": 0, "label_y": 5, "icon_x": 14, "icon_y": 2, "bar_x": 43, "bar_y": 8, "bar_width": 34, "value_x": 82, "value_y": 4, "charge_x": 102, "charge_y": 2},
+      "controls": ["side"]
+    },
+    {
+      "id": "connection-signal",
+      "label": "Connection · Signal",
+      "family": "Connection",
+      "style": "Signal",
+      "source": "docs/ui/widgets/connection-signal.xml",
+      "bounds": {"x": 0, "y": 0, "width": 62, "height": 20},
+      "defaults": {"icon_x": 0, "icon_y": 0, "value_x": 24, "value_y": 5},
+      "controls": []
+    },
+    {
+      "id": "connection-grid",
+      "label": "Connection · Grid",
+      "family": "Connection",
+      "style": "Grid",
+      "source": "docs/ui/widgets/connection-grid.xml",
+      "bounds": {"x": 0, "y": 0, "width": 62, "height": 20},
+      "defaults": {"icon_x": 0, "icon_y": 0, "value_x": 24, "value_y": 5},
+      "controls": []
+    },
+    {
+      "id": "layer-signal",
+      "label": "Layer · Signal",
+      "family": "Layer",
+      "style": "Signal",
+      "source": "docs/ui/widgets/layer-signal.xml",
+      "bounds": {"x": 0, "y": 0, "width": 90, "height": 22},
+      "defaults": {"icon_x": 0, "icon_y": 0, "name_x": 28, "name_y": 6, "index_x": 76, "index_y": 5},
+      "controls": []
+    },
+    {
+      "id": "layer-grid",
+      "label": "Layer · Grid",
+      "family": "Layer",
+      "style": "Grid",
+      "source": "docs/ui/widgets/layer-grid.xml",
+      "bounds": {"x": 0, "y": 0, "width": 90, "height": 22},
+      "defaults": {"icon_x": 0, "icon_y": 0, "index_x": 28, "index_y": 2, "name_x": 50, "name_y": 7},
+      "controls": []
+    },
+    {
+      "id": "profile-signal",
+      "label": "Profile · Signal",
+      "family": "Profile",
+      "style": "Signal",
+      "source": "docs/ui/widgets/profile-signal.xml",
+      "bounds": {"x": 0, "y": 0, "width": 56, "height": 22},
+      "defaults": {"icon_x": 0, "icon_y": 0, "number_x": 28, "number_y": 4, "label_x": 28, "label_y": 13, "empty_x": 0, "empty_y": 6},
+      "controls": []
+    },
+    {
+      "id": "profile-grid",
+      "label": "Profile · Grid",
+      "family": "Profile",
+      "style": "Grid",
+      "source": "docs/ui/widgets/profile-grid.xml",
+      "bounds": {"x": 0, "y": 0, "width": 56, "height": 22},
+      "defaults": {"icon_x": 0, "icon_y": 0, "number_x": 28, "number_y": 4, "label_x": 28, "label_y": 13, "empty_x": 0, "empty_y": 6},
+      "controls": []
+    }
+  ]
+}

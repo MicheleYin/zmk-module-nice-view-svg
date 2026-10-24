@@ -57,6 +57,22 @@ cmake --build build/lvgl_wasm
 uv run --isolated --with-requirements tools/requirements.txt python tools/render_xml_gallery.py
 ```
 
+## Interactive Screen Design
+
+Launch the artwork placement editor, visual screen designer, and live XML preview
+together:
+
+```sh
+uv run --isolated --with-requirements tools/requirements.txt \
+    python tools/artwork_gallery.py --interactive
+```
+
+In **Screen designer**, choose backgrounds independently for each half, adjust
+fit, focal point, rotation, and dithering, then add and position prepared widgets.
+Save the design to XML or build firmware screens and the paired preview gallery.
+The **XML preview** tab can inspect standard screens and generated artwork samples
+with interactive status fields.
+
 ## XML Tooling
 
 Screen sources and reusable widgets live under `docs/ui/`. Use the same field catalog

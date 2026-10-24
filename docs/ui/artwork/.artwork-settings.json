@@ -1,0 +1,59 @@
+{
+  "profile": "nice-view",
+  "images": {
+    "blossom-meadow.jpeg": {
+      "fit": "contain",
+      "x": 0.0,
+      "y": 0.0,
+      "rotation": 0
+    },
+    "cloud-cat.jpeg": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 1.0,
+      "rotation": 0
+    },
+    "moonlit-hillside.jpeg": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "pixel-astronaut.webp": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "pixel-cat.gif": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "sakura-village.jpg": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "shrine-garden.jpeg": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "spring-lane.jpg": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.5,
+      "rotation": 0
+    },
+    "sunset-drive.gif": {
+      "fit": "cover",
+      "x": 0.5,
+      "y": 0.2586656788655017,
+      "rotation": 0
+    }
+  }
+}

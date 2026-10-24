@@ -1,0 +1,5 @@
+<fragment>
+  <lv_image src="../assets/layer-grid.svg" x="{{icon_x}}" y="{{icon_y}}" width="22" height="22" />
+  <zmk_status_text field="layer.index" x="{{index_x}}" y="{{index_y}}" font_size="16" />
+  <zmk_status_text field="layer.name" role="central" x="{{name_x}}" y="{{name_y}}" font_size="8" />
+</fragment>

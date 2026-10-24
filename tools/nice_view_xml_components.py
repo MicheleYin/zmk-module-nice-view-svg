@@ -8,6 +8,17 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 PARAMETER = re.compile(r"\{\{([A-Za-z_]\w*)\}\}")
+EDITOR_ATTRIBUTES = {
+    "editor_id",
+    "editor_x",
+    "editor_y",
+    "editor_width",
+    "editor_height",
+    "editor_base_x",
+    "editor_base_y",
+    "editor_base_width",
+    "editor_base_height",
+}
 
 
 def _substitute(root: ET.Element, parameters: dict[str, str], source: Path) -> None:
@@ -65,6 +76,65 @@ def _rebase_images(
         image.set("src", Path(os.path.relpath(asset_path, screen_dir)).as_posix())
 
 
+def _transform_editor_instance(
+    fragment: ET.Element, include: ET.Element, source: Path
+) -> None:
+    if "editor_id" not in include.attrib:
+        return
+
+    names = (
+        "editor_x",
+        "editor_y",
+        "editor_width",
+        "editor_height",
+        "editor_base_x",
+        "editor_base_y",
+        "editor_base_width",
+        "editor_base_height",
+    )
+    try:
+        values = {name: float(include.attrib[name]) for name in names}
+    except (KeyError, ValueError) as error:
+        raise ValueError(f"{source}: editor instance has invalid geometry") from error
+
+    if values["editor_width"] <= 0 or values["editor_height"] <= 0:
+        raise ValueError(f"{source}: editor instance size must be positive")
+    if values["editor_base_width"] <= 0 or values["editor_base_height"] <= 0:
+        raise ValueError(f"{source}: editor module bounds must be positive")
+
+    scale_x = values["editor_width"] / values["editor_base_width"]
+    scale_y = values["editor_height"] / values["editor_base_height"]
+    font_scale = min(scale_x, scale_y)
+    for element in fragment.iter():
+        for name, scale, origin, target in (
+            ("x", scale_x, values["editor_base_x"], values["editor_x"]),
+            ("y", scale_y, values["editor_base_y"], values["editor_y"]),
+        ):
+            raw = element.get(name)
+            if raw is not None:
+                try:
+                    element.set(name, str(round(target + (float(raw) - origin) * scale)))
+                except ValueError as error:
+                    raise ValueError(
+                        f"{source}: editor module has non-numeric {name}"
+                    ) from error
+
+        for name, scale in (
+            ("width", scale_x),
+            ("height", scale_y),
+            ("font_size", font_scale),
+            ("ring_width", font_scale),
+        ):
+            raw = element.get(name)
+            if raw is not None:
+                try:
+                    element.set(name, str(max(1, round(float(raw) * scale))))
+                except ValueError as error:
+                    raise ValueError(
+                        f"{source}: editor module has non-numeric {name}"
+                    ) from error
+
+
 def _expand_include(
     include: ET.Element,
     source: Path,
@@ -86,9 +156,14 @@ def _expand_include(
 
     fragment = _read_fragment(widget_path)
     parameters = {
-        name: value for name, value in include.attrib.items() if name != "src"
+        name: value
+        for name, value in include.attrib.items()
+        if name != "src"
+        and name not in EDITOR_ATTRIBUTES
+        and not name.startswith("editor_")
     }
     _substitute(fragment, parameters, widget_path)
+    _transform_editor_instance(fragment, include, widget_path)
     _rebase_images(fragment, widget_path, screen_dir, dependencies)
     _expand_children(
         fragment, widget_path, screen_dir, (*stack, widget_path), dependencies

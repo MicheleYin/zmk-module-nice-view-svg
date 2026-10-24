@@ -147,6 +147,9 @@
       <div class="source" id="source"></div>
     </div>
     <div class="header-controls">
+      <label class="role-control" id="screen-control" hidden>Screen
+        <select id="screen-select"></select>
+      </label>
       <label class="role-control">Display role
         <select id="role">
           <option value="central">Central</option>
@@ -184,6 +187,8 @@
   <script type="module">
     const roleSelect = document.querySelector("#role");
     const inversionSelect = document.querySelector("#inversion");
+    const screenControl = document.querySelector("#screen-control");
+    const screenSelect = document.querySelector("#screen-select");
     const fieldsRoot = document.querySelector("#fields");
     const screensRoot = document.querySelector("#screens");
     const status = document.querySelector("#status");
@@ -420,6 +425,7 @@
       }
       const bindingsChanged = JSON.stringify(config.bindings) !== JSON.stringify(updated.bindings);
       config = updated;
+      await refreshScreenChoices();
       document.title = `${config.title} · Nice!view Live Preview`;
       document.querySelector("#source").textContent = config.title;
       if (bindingsChanged) {
@@ -430,6 +436,40 @@
       updateScreenMetadata();
       syncControls();
       queueRender();
+    }
+
+    async function refreshScreenChoices() {
+      try {
+        const response = await fetch("/screens", { cache: "no-store" });
+        if (!response.ok) return;
+        const choices = await response.json();
+        if (!choices.length) return;
+        const current = config.screenChoice ?? screenSelect.value;
+        screenSelect.replaceChildren(...choices.map(choice => {
+          const option = document.createElement("option");
+          option.value = choice.id;
+          option.textContent = choice.label;
+          return option;
+        }));
+        screenSelect.value = choices.some(choice => choice.id === current)
+          ? current
+          : choices[0].id;
+        screenControl.hidden = false;
+      } catch {}
+    }
+
+    async function selectScreen() {
+      status.textContent = "Loading screen…";
+      try {
+        const response = await fetch("/screen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: screenSelect.value }),
+        });
+        if (!response.ok) throw new Error(await response.text());
+      } catch (error) {
+        status.textContent = error.message;
+      }
     }
 
     function updateScreenLayout() {
@@ -502,6 +542,7 @@
       const response = await fetch("/config");
       if (!response.ok) throw new Error(await response.text());
       config = await response.json();
+      await refreshScreenChoices();
       document.title = `${config.title} · Nice!view Live Preview`;
       document.querySelector("#source").textContent = config.title;
       const panels = [...screensRoot.querySelectorAll(".screen-panel")];
@@ -518,6 +559,7 @@
       }
       updateScreenMetadata();
       inversionSelect.value = config.initialInversionMode;
+      screenSelect.addEventListener("change", selectScreen);
       inversionSelect.addEventListener("change", updateScreenPolarity);
       updateScreenPolarity();
       roleSelect.value = config.initialRole;

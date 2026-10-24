@@ -1,0 +1,10 @@
+<fragment>
+  <zmk_status_when field="ble.active_profile" test="not_equals" value="-1">
+    <lv_image src="../assets/profile-signal.svg" x="{{icon_x}}" y="{{icon_y}}" width="24" height="20" />
+    <zmk_status_text field="ble.active_profile" format="profile-number" x="{{number_x}}" y="{{number_y}}" font_size="12" />
+    <lv_label text="ACTIVE" x="{{label_x}}" y="{{label_y}}" font_size="8" font_family="monospace" />
+  </zmk_status_when>
+  <zmk_status_when field="ble.active_profile" test="equals" value="-1">
+    <lv_label text="NONE" x="{{empty_x}}" y="{{empty_y}}" font_size="8" font_family="monospace" />
+  </zmk_status_when>
+</fragment>

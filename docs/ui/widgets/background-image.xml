@@ -1,0 +1,4 @@
+<fragment>
+  <lv_image src="{{image_src}}" x="0" y="0"
+            width="{{width}}" height="{{height}}" dither="{{dither}}" />
+</fragment>

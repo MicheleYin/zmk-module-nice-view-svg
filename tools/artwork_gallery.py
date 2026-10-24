@@ -11,9 +11,17 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageOps
 
 if __package__:
+    from tools.artwork_editor import (
+        PROFILES,
+        fit_image,
+        load_settings,
+        run_editor,
+        settings_for_image,
+    )
     from tools.nice_view_xml_codegen import MAX_ANIMATION_BYTES, MAX_ANIMATION_FRAMES
     from tools.nice_view_xml_assets import DITHER_ALGORITHMS, monochrome_pixels_from_rgba
 else:
+    from artwork_editor import PROFILES, fit_image, load_settings, run_editor, settings_for_image
     from nice_view_xml_codegen import MAX_ANIMATION_BYTES, MAX_ANIMATION_FRAMES
     from nice_view_xml_assets import DITHER_ALGORITHMS, monochrome_pixels_from_rgba
 
@@ -25,7 +33,6 @@ PREVIEW_OUTPUT = ROOT / "docs" / "ui" / "gallery" / "artwork"
 README = ROOT / "README.md"
 START_MARKER = "<!-- ARTWORK GALLERY START -->"
 END_MARKER = "<!-- ARTWORK GALLERY END -->"
-COUNTERCLOCKWISE_ROTATIONS = {"blossom-meadow.jpeg": 90}
 SUPPORTED_SUFFIXES = {
     ".avif",
     ".bmp",
@@ -43,7 +50,9 @@ def _slug(name: str) -> str:
     return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", name.lower())).strip("-")
 
 
-def _read_frames(path: Path, size: tuple[int, int]):
+def _read_frames(
+    path: Path, size: tuple[int, int], settings: dict[str, object]
+):
     frames = []
     durations = []
     with Image.open(path) as source:
@@ -52,17 +61,7 @@ def _read_frames(path: Path, size: tuple[int, int]):
         for frame_index in range(frame_count):
             source.seek(frame_index)
             frame = ImageOps.exif_transpose(source.convert("RGBA"))
-            rotation = COUNTERCLOCKWISE_ROTATIONS.get(path.name, 0)
-            if rotation:
-                frame = frame.rotate(rotation, expand=True)
-            frames.append(
-                ImageOps.fit(
-                    frame,
-                    size,
-                    method=Image.Resampling.LANCZOS,
-                    centering=(0.5, 0.5),
-                )
-            )
+            frames.append(fit_image(frame, size, settings))
             durations.append(
                 max(20, min(int(source.info.get("duration") or 100), 60000))
             )
@@ -148,17 +147,20 @@ def _save_preview_set(
     return variants
 
 
-def _write_screen_sample(slug: str, asset_name: str) -> Path:
+def _write_screen_sample(
+    slug: str, asset_name: str, size: tuple[int, int]
+) -> Path:
     sample_path = SAMPLE_OUTPUT / f"nice-view-artwork-{slug}.xml"
     SAMPLE_OUTPUT.mkdir(parents=True, exist_ok=True)
+    width, height = size
     root = ET.Element("component")
     view = ET.SubElement(
         root,
         "view",
         {
             "extends": "lv_obj",
-            "width": "160",
-            "height": "68",
+            "width": str(width),
+            "height": str(height),
             "style_bg_color": "0xffffff",
             "style_pad_all": "0",
             "scrollable": "false",
@@ -171,8 +173,8 @@ def _write_screen_sample(slug: str, asset_name: str) -> Path:
             "src": f"../assets/artwork/{asset_name}",
             "x": "0",
             "y": "0",
-            "width": "160",
-            "height": "68",
+            "width": str(width),
+            "height": str(height),
             "dither": "none",
         },
     )
@@ -181,8 +183,8 @@ def _write_screen_sample(slug: str, asset_name: str) -> Path:
         "zmk_status_text",
         {
             "field": "layer.index",
-            "x": "158",
-            "y": "60",
+            "x": str(width - 2),
+            "y": str(max(0, height - 8)),
             "font_size": "8",
             "anchor": "end",
         },
@@ -196,7 +198,7 @@ def _write_screen_sample(slug: str, asset_name: str) -> Path:
     return sample_path
 
 
-def _update_readme(records: list[dict[str, object]]) -> None:
+def _update_readme(records: list[dict[str, object]], size: tuple[int, int]) -> None:
     text = README.read_text(encoding="utf-8")
     start = text.find(START_MARKER)
     end = text.find(END_MARKER, start + len(START_MARKER))
@@ -207,13 +209,19 @@ def _update_readme(records: list[dict[str, object]]) -> None:
         START_MARKER,
         "## Artwork Dither Gallery",
         "",
-        "Put raster artwork in `docs/ui/artwork/`, then run:",
+        "Open the placement editor to add artwork, choose a display size and fit, and drag images into position:",
+        "",
+        "```sh",
+        "uv run --isolated --with-requirements tools/requirements.txt python tools/artwork_gallery.py --interactive",
+        "```",
+        "",
+        "Use **Save & build gallery** to regenerate the screen-sized assets and dither previews. The command-line gallery build remains available for batch generation.",
         "",
         "```sh",
         "uv run --isolated --with-requirements tools/requirements.txt python tools/artwork_gallery.py",
         "```",
         "",
-        "Each comparison is cropped to the 160×68 Nice!View screen and shows the available conversion modes left to right: none, Floyd–Steinberg, Atkinson, and Bayer. The links open the individual PNG or animated GIF output and the generated XML screen sample.",
+        f"Each comparison is fitted to {size[0]}×{size[1]} pixels and shows the available conversion modes left to right: none, Floyd–Steinberg, Atkinson, and Bayer. The links open the individual PNG or animated GIF output and the generated XML screen sample.",
         "",
         "| Artwork | Dither comparison | Screen sample | Individual modes |",
         "| --- | --- | --- | --- |",
@@ -254,6 +262,7 @@ def _remove_stale_samples(active_slugs: set[str]) -> None:
 
 
 def build_gallery(input_dir: Path, size: tuple[int, int]) -> int:
+    saved_settings = load_settings(input_dir)
     sources = sorted(
         path
         for path in input_dir.iterdir()
@@ -272,7 +281,8 @@ def build_gallery(input_dir: Path, size: tuple[int, int]) -> int:
             )
         used_slugs.add(slug)
 
-        frames, durations, loop = _read_frames(source_path, size)
+        image_settings = settings_for_image(saved_settings, source_path.name)
+        frames, durations, loop = _read_frames(source_path, size, image_settings)
         screen_frames, screen_durations, screen_loop = _limit_screen_frames(
             frames, durations, loop
         )
@@ -285,7 +295,7 @@ def build_gallery(input_dir: Path, size: tuple[int, int]) -> int:
             screen_frames[0].save(asset_path, format="PNG", optimize=True)
 
         variants = _save_preview_set(slug, frames, durations, loop, size)
-        sample_path = _write_screen_sample(slug, asset_path.name)
+        sample_path = _write_screen_sample(slug, asset_path.name, size)
         records.append(
             {
                 "source": source_path.name,
@@ -296,7 +306,7 @@ def build_gallery(input_dir: Path, size: tuple[int, int]) -> int:
         print(f"Rendered {source_path.name}")
 
     _remove_stale_samples(used_slugs)
-    _update_readme(records)
+    _update_readme(records, size)
     print(f"Updated {README.relative_to(ROOT)} with {len(records)} artwork previews")
     return len(records)
 
@@ -304,13 +314,27 @@ def build_gallery(input_dir: Path, size: tuple[int, int]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT)
-    parser.add_argument("--width", type=int, default=160)
-    parser.add_argument("--height", type=int, default=68)
+    parser.add_argument("--interactive", action="store_true", help="open the local placement editor")
+    parser.add_argument("--port", type=int, default=0, help="editor port (default: choose an available port)")
+    parser.add_argument("--profile", choices=("nice-view", "oled"))
+    parser.add_argument("--width", type=int)
+    parser.add_argument("--height", type=int)
     args = parser.parse_args()
-    if args.width < 1 or args.height < 1:
+    if (args.width is None) != (args.height is None):
+        parser.error("--width and --height must be provided together")
+    if args.width is not None and (args.width < 1 or args.height < 1):
         parser.error("--width and --height must be positive")
     try:
-        build_gallery(args.input_dir.resolve(), (args.width, args.height))
+        input_dir = args.input_dir.resolve()
+        if args.interactive:
+            run_editor(input_dir, args.port)
+            return 0
+        if args.width is not None:
+            size = (args.width, args.height)
+        else:
+            profile = args.profile or load_settings(input_dir)["profile"]
+            size = PROFILES[profile]
+        build_gallery(input_dir, size)
     except (OSError, ValueError) as error:
         parser.error(str(error))
     return 0

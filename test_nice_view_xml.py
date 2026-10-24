@@ -29,10 +29,16 @@ from tools.nice_view_xml_components import expand_screen_file
 from tools.nice_view_xml_live import (
     LivePreviewHandler,
     LivePreviewServer,
+    available_screen_choices,
     build_paired_preview_config,
     build_preview_config,
 )
 from tools.nice_view_xml_preview import preview_png, preview_xml_text
+from tools.screen_designer import (
+    load_design_screen,
+    load_visual_modules,
+    write_design_screen,
+)
 from tools.render_xml_gallery import (
     render_animated_screen_gif,
     render_animation_sheets,
@@ -94,10 +100,10 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                 PREVIEW_OUTPUT=preview_output,
                 README=readme,
             ):
-                artwork_gallery.build_gallery(input_dir, (16, 8))
+                artwork_gallery.build_gallery(input_dir, (128, 32))
 
             with Image.open(asset_output / "sample.png") as screen_asset:
-                self.assertEqual(screen_asset.size, (16, 8))
+                self.assertEqual(screen_asset.size, (128, 32))
             self.assertTrue(
                 (preview_output / "sample" / "comparison.png").is_file()
             )
@@ -106,10 +112,28 @@ class NiceViewXmlValidationTests(unittest.TestCase):
             )
             sample_screen = sample_output / "nice-view-artwork-sample.xml"
             self.assertEqual(validate_screen(sample_screen), [])
+            sample_view = ET.parse(sample_screen).getroot().find("view")
+            self.assertIsNotNone(sample_view)
+            self.assertEqual(sample_view.get("width"), "128")
+            self.assertEqual(sample_view.get("height"), "32")
             self.assertFalse(stale_sample.exists())
             self.assertIn(
                 "docs/ui/gallery/artwork/sample/comparison.png", readme.read_text()
             )
+
+    def test_artwork_fitting_supports_focal_cover_and_contain(self):
+        image = Image.new("RGBA", (4, 2))
+        image.paste((255, 0, 0, 255), (0, 0, 2, 2))
+        image.paste((0, 0, 255, 255), (2, 0, 4, 2))
+        settings = {"fit": "cover", "x": 1.0, "y": 0.5, "rotation": 0}
+
+        right_crop = artwork_gallery.fit_image(image, (2, 2), settings)
+        self.assertGreater(right_crop.getpixel((0, 0))[2], 200)
+
+        settings["fit"] = "contain"
+        contained = artwork_gallery.fit_image(image, (4, 4), settings)
+        self.assertEqual(contained.size, (4, 4))
+        self.assertEqual(contained.getpixel((0, 0)), (255, 255, 255, 255))
 
     def test_artwork_firmware_animation_respects_frame_budget(self):
         frames = [Image.new("RGBA", (1, 1), "white") for _ in range(65)]
@@ -680,6 +704,176 @@ class NiceViewXmlValidationTests(unittest.TestCase):
 
         self.assertIn("ZMK_NVP_SVG_BINDING_COUNT 1", header)
 
+    def test_editor_include_transform_positions_and_resizes_module_elements(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            widget_dir = root / "widgets"
+            screen_dir = root / "screens"
+            widget_dir.mkdir()
+            screen_dir.mkdir()
+            (widget_dir / "sample.xml").write_text(
+                '<fragment><lv_image src="icon.svg" x="5" y="4" '
+                'width="10" height="6"/><lv_label x="5" y="16" '
+                'font_size="8"/></fragment>'
+            )
+            screen_path = screen_dir / "screen.xml"
+            screen_path.write_text(
+                '<component><view width="160" height="68">'
+                '<zmk_include src="../widgets/sample.xml" editor_id="widget-1" '
+                'editor_x="20" editor_y="10" editor_width="60" '
+                'editor_height="40" editor_base_x="0" editor_base_y="0" '
+                'editor_base_width="30" editor_base_height="20"/>'
+                '</view></component>'
+            )
+
+            expanded = ET.fromstring(expand_screen_file(screen_path))
+
+        image = expanded.find(".//lv_image")
+        label = expanded.find(".//lv_label")
+        self.assertIsNotNone(image)
+        self.assertIsNotNone(label)
+        self.assertEqual(
+            {name: image.get(name) for name in ("x", "y", "width", "height")},
+            {"x": "30", "y": "18", "width": "20", "height": "12"},
+        )
+        self.assertEqual(label.get("x"), "30")
+        self.assertEqual(label.get("y"), "42")
+        self.assertEqual(label.get("font_size"), "16")
+
+    def test_screen_designer_saves_per_half_artwork_and_widget_settings_to_xml(self):
+        modules = load_visual_modules()
+        self.assertEqual(
+            {module["style"] for module in modules.values() if module["family"] != "Background"},
+            {"Signal", "Grid"},
+        )
+        with tempfile.TemporaryDirectory(
+            dir=Path(__file__).parent / "docs" / "ui"
+        ) as temp_dir:
+            root = Path(temp_dir)
+            input_dir = root / "artwork"
+            input_dir.mkdir()
+            source = Image.new("RGBA", (32, 16), "white")
+            ImageDraw.Draw(source).rectangle((16, 0, 31, 15), fill="black")
+            source.save(input_dir / "sample.png")
+            design = {
+                "background": {
+                    "image": "sample.png",
+                    "fit": "cover",
+                    "focal_x": 1.0,
+                    "focal_y": 0.5,
+                    "rotation": 0,
+                    "dither": "bayer",
+                },
+                "widgets": [
+                    {
+                        "id": "battery-a",
+                        "module": "battery-signal",
+                        "x": 12,
+                        "y": 8,
+                        "width": 56,
+                        "height": 10,
+                        "properties": {"side": "right"},
+                    }
+                ],
+            }
+            screen_path = root / "designer" / "nice-view-left.xml"
+            write_design_screen(
+                "nice-view",
+                "left",
+                design,
+                screen_path,
+                input_dir,
+                root / "assets",
+            )
+
+            self.assertEqual(validate_screen(screen_path), [])
+            expanded = ET.fromstring(expand_screen_file(screen_path))
+            background = expanded.find(".//lv_image")
+            generated = root / "assets" / "background-nice-view-left.png"
+            with Image.open(generated) as fitted:
+                self.assertEqual(fitted.size, (160, 68))
+            loaded = load_design_screen(screen_path)
+            output_dir = root / "generated"
+            generate(screen_path, output_dir)
+            generated_source = (output_dir / "status_screen_gen.c").read_text()
+
+        self.assertIsNotNone(background)
+        self.assertEqual(background.get("dither"), "bayer")
+        self.assertEqual(loaded["background"]["image"], "sample.png")
+        self.assertEqual(loaded["background"]["focal_x"], 1.0)
+        self.assertEqual(loaded["widgets"][0]["properties"]["side"], "right")
+        self.assertIn("zmk_nvp_svg_background_data", generated_source)
+
+    def test_imported_signal_and_grid_widgets_expand_validate_and_generate(self):
+        widget_dir = Path(__file__).parent / "docs" / "ui" / "widgets"
+        widget_parameters = {
+            "battery-grid.xml": {
+                "side": "left", "label": "L", "label_x": "2", "label_y": "2",
+                "icon_x": "18", "icon_y": "2", "bar_x": "45",
+                "bar_y": "8", "bar_width": "30", "value_x": "80",
+                "value_y": "2", "charge_x": "110", "charge_y": "2",
+            },
+            "battery-signal.xml": {
+                "side": "left", "label": "L", "label_x": "2", "label_y": "2",
+                "icon_x": "18", "icon_y": "2", "bar_x": "45",
+                "bar_y": "8", "bar_width": "30", "value_x": "80",
+                "value_y": "2", "charge_x": "110", "charge_y": "2",
+            },
+            "connection-grid.xml": {
+                "icon_x": "2", "icon_y": "2", "value_x": "24", "value_y": "2",
+            },
+            "connection-signal.xml": {
+                "icon_x": "2", "icon_y": "2", "value_x": "24", "value_y": "2",
+            },
+            "layer-grid.xml": {
+                "icon_x": "2", "icon_y": "2", "index_x": "28",
+                "index_y": "2", "name_x": "50", "name_y": "2",
+            },
+            "layer-signal.xml": {
+                "icon_x": "2", "icon_y": "2", "name_x": "28",
+                "name_y": "2", "index_x": "80", "index_y": "2",
+            },
+            "profile-grid.xml": {
+                "icon_x": "2", "icon_y": "2", "number_x": "28",
+                "number_y": "2", "label_x": "50", "label_y": "2",
+                "empty_x": "28", "empty_y": "2",
+            },
+            "profile-signal.xml": {
+                "icon_x": "2", "icon_y": "2", "number_x": "28",
+                "number_y": "2", "label_x": "50", "label_y": "2",
+                "empty_x": "28", "empty_y": "2",
+            },
+        }
+
+        for widget_name, parameters in widget_parameters.items():
+            with self.subTest(widget=widget_name), tempfile.TemporaryDirectory() as temp_dir:
+                screen_path = Path(temp_dir) / "screen.xml"
+                component = ET.Element("component")
+                view = ET.SubElement(
+                    component, "view", {"width": "160", "height": "68"}
+                )
+                ET.SubElement(
+                    view,
+                    "zmk_include",
+                    {"src": str(widget_dir / widget_name), **parameters},
+                )
+                screen_path.write_text(ET.tostring(component, encoding="unicode"))
+
+                dependencies: set[Path] = set()
+                expanded = expand_screen_file(screen_path, dependencies)
+                self.assertNotIn("zmk_include", expanded)
+                self.assertEqual(validate_screen(screen_path), [])
+                header_path, _ = write_generated(
+                    screen_path, Path(temp_dir) / "generated", expanded
+                )
+                header = header_path.read_text()
+
+                self.assertIn("ZMK_NVP_SVG_VISIBLE_ASSET_COUNT", header)
+                self.assertIn((widget_dir / widget_name).resolve(), dependencies)
+                self.assertTrue(
+                    any(path.suffix == ".svg" for path in dependencies)
+                )
+
     def test_modular_samples_expand_validate_and_generate(self):
         samples = Path(__file__).parent / "docs" / "ui" / "samples"
         for path in sorted(samples.glob("*.xml")):
@@ -809,6 +1003,32 @@ class NiceViewXmlValidationTests(unittest.TestCase):
                     generated = Path(temp_dir) / f"status_screen_gen{extension}"
                     committed = generated_root / theme / f"status_screen_gen{extension}"
                     self.assertEqual(generated.read_bytes(), committed.read_bytes())
+
+    def test_xml_preview_screen_choices_include_presets_and_artwork_samples(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            screens = root / "docs" / "ui" / "screens"
+            samples = root / "docs" / "ui" / "samples"
+            screens.mkdir(parents=True)
+            samples.mkdir(parents=True)
+            for name in (
+                "nice-view-left.xml",
+                "nice-view-right.xml",
+                "oled-left.xml",
+                "oled-right.xml",
+            ):
+                (screens / name).write_text("<component/>")
+            artwork_sample = samples / "nice-view-artwork-test-image.xml"
+            artwork_sample.write_text("<component/>")
+
+            choices = available_screen_choices(root)
+
+        self.assertIn("nice-view-pair", choices)
+        self.assertIn("oled-pair", choices)
+        self.assertEqual(
+            choices["artwork:nice-view-artwork-test-image.xml"][1],
+            (artwork_sample,),
+        )
 
     def test_live_reload_keeps_last_good_snapshot_on_invalid_xml(self):
         with tempfile.TemporaryDirectory() as temp_dir:

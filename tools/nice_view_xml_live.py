@@ -46,6 +46,37 @@ RENDERER_BY_TAG = {
 }
 
 
+def available_screen_choices(
+    root: Path | None = None,
+) -> dict[str, tuple[str, tuple[Path, ...]]]:
+    root = root or TOOLS_DIR.parent
+    screens = root / "docs" / "ui" / "screens"
+    samples = root / "docs" / "ui" / "samples"
+    definitions = {
+        "nice-view-pair": (
+            "Nice!View · left + right",
+            (screens / "nice-view-left.xml", screens / "nice-view-right.xml"),
+        ),
+        "oled-pair": (
+            "OLED · left + right",
+            (screens / "oled-left.xml", screens / "oled-right.xml"),
+        ),
+        "nice-view-left": ("Nice!View · left", (screens / "nice-view-left.xml",)),
+        "nice-view-right": ("Nice!View · right", (screens / "nice-view-right.xml",)),
+        "oled-left": ("OLED · left", (screens / "oled-left.xml",)),
+        "oled-right": ("OLED · right", (screens / "oled-right.xml",)),
+    }
+    choices = {
+        choice_id: (label, paths)
+        for choice_id, (label, paths) in definitions.items()
+        if all(path.is_file() for path in paths)
+    }
+    for sample in sorted(samples.glob("nice-view-artwork-*.xml")):
+        name = sample.stem.removeprefix("nice-view-artwork-")
+        choices[f"artwork:{sample.name}"] = (f"Artwork sample · {name}", (sample,))
+    return choices
+
+
 def _default_value(field: dict[str, Any]) -> Any:
     field_type = field["type"]
     if field_type == "enum":
@@ -220,6 +251,8 @@ class LivePreviewServer(ThreadingHTTPServer):
     change_condition: threading.Condition
     revision: int
     reload_error: str | None
+    allow_screen_select: bool
+    screen_choice: str | None
 
     def watch_dependencies(self, dependencies: set[Path]) -> None:
         for dependency in dependencies:
@@ -267,6 +300,9 @@ class LivePreviewServer(ThreadingHTTPServer):
             return False
 
         self.watch_dependencies(dependencies)
+        screen_choice = getattr(self, "screen_choice", None)
+        if screen_choice:
+            config["screenChoice"] = screen_choice
         with self.state_lock:
             self.preview_config = config
             self.xml_text = xml_text
@@ -335,6 +371,15 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             with self.server.state_lock:
                 body = json.dumps(self.server.preview_config).encode("utf-8")
             self._send(200, "application/json; charset=utf-8", body)
+        elif path == "/screens" and getattr(self.server, "allow_screen_select", False):
+            choices = available_screen_choices()
+            body = json.dumps(
+                [
+                    {"id": choice_id, "label": label}
+                    for choice_id, (label, _) in choices.items()
+                ]
+            ).encode("utf-8")
+            self._send(200, "application/json; charset=utf-8", body)
         elif path == "/events":
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -360,7 +405,33 @@ class LivePreviewHandler(BaseHTTPRequestHandler):
             self._send(404, TEXT_CONTENT_TYPE, b"Not found")
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/render":
+        path = urlsplit(self.path).path
+        if path == "/screen" and getattr(self.server, "allow_screen_select", False):
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if length <= 0 or length > 65536:
+                    raise ValueError("invalid request size")
+                request = json.loads(self.rfile.read(length))
+                choice_id = request.get("id")
+                choices = available_screen_choices()
+                if choice_id not in choices:
+                    raise ValueError("unknown screen choice")
+                _, paths = choices[choice_id]
+                self.server.screen_paths = paths
+                self.server.screen_choice = choice_id
+                self.server.left_role = "central"
+                self.server.right_role = "peripheral"
+                if not self.server.reload_sources():
+                    raise ValueError(self.server.reload_error or "could not load screen")
+                self._send(
+                    200,
+                    "application/json; charset=utf-8",
+                    json.dumps({"id": choice_id}).encode("utf-8"),
+                )
+            except (TypeError, ValueError, OSError, json.JSONDecodeError) as error:
+                self._send(400, TEXT_CONTENT_TYPE, str(error).encode("utf-8"))
+            return
+        if path != "/render":
             self._send(404, TEXT_CONTENT_TYPE, b"Not found")
             return
         try:

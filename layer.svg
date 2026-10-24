@@ -1,29 +1,66 @@
 <svg xmlns="http://www.w3.org/2000/svg"
-     width="30" height="30" viewBox="0 0 30 30"
+     width="160" height="68" viewBox="0 0 160 68"
      shape-rendering="crispEdges">
+  <rect width="160" height="68" fill="white"/>
 
-  <rect x="1" y="1"
-        width="28" height="28"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"/>
+  <!-- Header -->
+  <text x="5" y="10"
+        font-family="monospace" font-size="7"
+        font-weight="bold" letter-spacing="1">PULSE_01</text>
 
-  <!-- Layer indicator -->
-  <path d="M7 8 L15 4 L23 8 L15 12 Z"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.2"/>
+  <text x="124" y="10"
+        font-family="monospace" font-size="6">BLE: ON</text>
 
-  <path d="M7 12 L15 16 L23 12
-           M7 16 L15 20 L23 16"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.2"/>
+  <path d="M5 14 H155" stroke="black" stroke-width="1"/>
 
-  <text x="15" y="27"
-        text-anchor="middle"
-        font-family="monospace"
-        font-size="8"
-        fill="currentColor">2</text>
+  <!-- Waveform frame -->
+  <rect x="5" y="19" width="150" height="29"
+        fill="white" stroke="black" stroke-width="1"/>
 
+  <!-- Center line -->
+  <path d="M8 33 H152"
+        stroke="black" stroke-width="1"
+        stroke-dasharray="2 3"/>
+
+  <!-- Waveform -->
+  <path d="M8 33
+           H13 V29 H17 V36 H21 V24
+           H25 V40 H29 V30 H33 V33
+           H37 V19 H41 V43 H45 V27
+           H49 V35 H53 V31 H57 V33
+           H61 V23 H65 V41 H69 V28
+           H73 V36 H77 V33 H81 V17
+           H85 V45 H89 V29 H93 V35
+           H97 V31 H101 V33 H105 V25
+           H109 V39 H113 V29 H117 V34
+           H121 V33 H125 V21 H129 V42
+           H133 V28 H137 V36 H141 V31
+           H145 V33 H152"
+        fill="none" stroke="black"
+        stroke-width="1.5"
+        stroke-linejoin="miter"/>
+
+  <!-- Bottom status -->
+  <text x="5" y="59"
+        font-family="monospace" font-size="7">LAYER</text>
+
+  <text x="36" y="61"
+        font-family="monospace" font-size="13"
+        font-weight="bold">02</text>
+
+  <path d="M59 52 V63" stroke="black" stroke-width="1"/>
+
+  <text x="66" y="58"
+        font-family="monospace" font-size="7">BAT</text>
+
+  <text x="66" y="64"
+        font-family="monospace" font-size="8"
+        font-weight="bold">87%</text>
+
+  <!-- Battery bars -->
+  <rect x="119" y="54" width="5" height="8" fill="black"/>
+  <rect x="126" y="50" width="5" height="12" fill="black"/>
+  <rect x="133" y="46" width="5" height="16" fill="black"/>
+  <rect x="140" y="50" width="5" height="12" fill="black"/>
+  <rect x="147" y="54" width="5" height="8" fill="black"/>
 </svg>

@@ -24,19 +24,29 @@ Each row shows central and peripheral status values in the matching left/right l
 | Nice!View (160×68) | <img src="docs/ui/gallery/nice-view-left.png" alt="Left Nice!View screen" width="320"> | <img src="docs/ui/gallery/nice-view-right.png" alt="Right Nice!View screen" width="320"> |
 | OLED (128×32) | <img src="docs/ui/gallery/oled-left.png" alt="Left OLED screen" width="320"> | <img src="docs/ui/gallery/oled-right.png" alt="Right OLED screen" width="320"> |
 
-Image conversion samples compare the same PNG with hard threshold and Bayer
-patterns, alongside an animated GIF using Atkinson dithering.
+<!-- ARTWORK GALLERY START -->
+## Artwork Dither Gallery
 
-| PNG: threshold | PNG: Bayer | GIF: Atkinson |
-| --- | --- | --- |
-| <img src="docs/ui/gallery/sample-nice-view-space-threshold.png" alt="PNG background with threshold conversion" width="320"> | <img src="docs/ui/gallery/sample-nice-view-space-bayer.png" alt="PNG background with Bayer dithering" width="320"> | <img src="docs/ui/gallery/sample-nice-view-motion-atkinson.png" alt="Animated GIF background with Atkinson dithering" width="320"> |
+Put raster artwork in `docs/ui/artwork/`, then run:
 
-The GIF below is the complete 160×68 screen rendered frame by frame, including
-status readouts. It animates in supported Markdown viewers. See the [frame contact
-sheet](docs/ui/gallery/sample-nice-view-motion-atkinson-animation-0.png) for every
-converted source frame.
+```sh
+uv run --isolated --with-requirements tools/requirements.txt python tools/artwork_gallery.py
+```
 
-<img src="docs/ui/gallery/sample-nice-view-motion-atkinson.gif" alt="Animated full-screen Nice!View sample using an Atkinson-dithered GIF" width="640">
+Each comparison is cropped to the 160×68 Nice!View screen and shows the available conversion modes left to right: none, Floyd–Steinberg, Atkinson, and Bayer. The links open the individual PNG or animated GIF output and the generated XML screen sample.
+
+| Artwork | Dither comparison | Screen sample | Individual modes |
+| --- | --- | --- | --- |
+| [blossom-meadow.jpeg](docs/ui/artwork/blossom-meadow.jpeg) | <img src="docs/ui/gallery/artwork/blossom-meadow/comparison.png" alt="blossom-meadow.jpeg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-blossom-meadow.xml) | [none](docs/ui/gallery/artwork/blossom-meadow/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/blossom-meadow/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/blossom-meadow/atkinson.png) · [bayer](docs/ui/gallery/artwork/blossom-meadow/bayer.png) |
+| [cloud-cat.jpeg](docs/ui/artwork/cloud-cat.jpeg) | <img src="docs/ui/gallery/artwork/cloud-cat/comparison.png" alt="cloud-cat.jpeg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-cloud-cat.xml) | [none](docs/ui/gallery/artwork/cloud-cat/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/cloud-cat/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/cloud-cat/atkinson.png) · [bayer](docs/ui/gallery/artwork/cloud-cat/bayer.png) |
+| [moonlit-hillside.jpeg](docs/ui/artwork/moonlit-hillside.jpeg) | <img src="docs/ui/gallery/artwork/moonlit-hillside/comparison.png" alt="moonlit-hillside.jpeg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-moonlit-hillside.xml) | [none](docs/ui/gallery/artwork/moonlit-hillside/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/moonlit-hillside/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/moonlit-hillside/atkinson.png) · [bayer](docs/ui/gallery/artwork/moonlit-hillside/bayer.png) |
+| [pixel-astronaut.webp](docs/ui/artwork/pixel-astronaut.webp) | <img src="docs/ui/gallery/artwork/pixel-astronaut/comparison.png" alt="pixel-astronaut.webp: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-pixel-astronaut.xml) | [none](docs/ui/gallery/artwork/pixel-astronaut/none.gif) · [floyd-steinberg](docs/ui/gallery/artwork/pixel-astronaut/floyd-steinberg.gif) · [atkinson](docs/ui/gallery/artwork/pixel-astronaut/atkinson.gif) · [bayer](docs/ui/gallery/artwork/pixel-astronaut/bayer.gif) |
+| [pixel-cat.gif](docs/ui/artwork/pixel-cat.gif) | <img src="docs/ui/gallery/artwork/pixel-cat/comparison.png" alt="pixel-cat.gif: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-pixel-cat.xml) | [none](docs/ui/gallery/artwork/pixel-cat/none.gif) · [floyd-steinberg](docs/ui/gallery/artwork/pixel-cat/floyd-steinberg.gif) · [atkinson](docs/ui/gallery/artwork/pixel-cat/atkinson.gif) · [bayer](docs/ui/gallery/artwork/pixel-cat/bayer.gif) |
+| [sakura-village.jpg](docs/ui/artwork/sakura-village.jpg) | <img src="docs/ui/gallery/artwork/sakura-village/comparison.png" alt="sakura-village.jpg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-sakura-village.xml) | [none](docs/ui/gallery/artwork/sakura-village/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/sakura-village/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/sakura-village/atkinson.png) · [bayer](docs/ui/gallery/artwork/sakura-village/bayer.png) |
+| [shrine-garden.jpeg](docs/ui/artwork/shrine-garden.jpeg) | <img src="docs/ui/gallery/artwork/shrine-garden/comparison.png" alt="shrine-garden.jpeg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-shrine-garden.xml) | [none](docs/ui/gallery/artwork/shrine-garden/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/shrine-garden/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/shrine-garden/atkinson.png) · [bayer](docs/ui/gallery/artwork/shrine-garden/bayer.png) |
+| [spring-lane.jpg](docs/ui/artwork/spring-lane.jpg) | <img src="docs/ui/gallery/artwork/spring-lane/comparison.png" alt="spring-lane.jpg: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-spring-lane.xml) | [none](docs/ui/gallery/artwork/spring-lane/none.png) · [floyd-steinberg](docs/ui/gallery/artwork/spring-lane/floyd-steinberg.png) · [atkinson](docs/ui/gallery/artwork/spring-lane/atkinson.png) · [bayer](docs/ui/gallery/artwork/spring-lane/bayer.png) |
+| [sunset-drive.gif](docs/ui/artwork/sunset-drive.gif) | <img src="docs/ui/gallery/artwork/sunset-drive/comparison.png" alt="sunset-drive.gif: all dithering modes" width="640"> | [Screen XML](docs/ui/samples/nice-view-artwork-sunset-drive.xml) | [none](docs/ui/gallery/artwork/sunset-drive/none.gif) · [floyd-steinberg](docs/ui/gallery/artwork/sunset-drive/floyd-steinberg.gif) · [atkinson](docs/ui/gallery/artwork/sunset-drive/atkinson.gif) · [bayer](docs/ui/gallery/artwork/sunset-drive/bayer.gif) |
+<!-- ARTWORK GALLERY END -->
 
 Build the LVGL renderer and regenerate the gallery after changing screens, widgets,
 or artwork:
